@@ -13,7 +13,7 @@ Public functions: `discover`, `create_new_path`, `verify`, `restructure`.
 ## 2. Installation
 
 ```bash
-pip install git+https://github.com/Schubert-group-Digital-Automatization/file_discovery.git
+pip install git+https://github.com/Schubert-group-Digital-Automatization/SpecReK_file-discovery.git
 ```
 
 
