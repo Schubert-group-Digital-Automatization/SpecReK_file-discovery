@@ -3,6 +3,15 @@
 # Prefixes to find the Material Type Token
 KNOWN_PREFIXES = ("FSU", "UBT", "TC", "BASF")
 
+# For validation to check if cuarted cvs exists and is valid
+CURATED_REQUIRED_COLS = {"Path", "Current Filename", "ID"}
+CREATE_NEW_PATH_REQUIRED_COLS = {"ID", "Path", "Date"}
+VERIFY_REQUIRED_COLS = {"ID", "Path", "new Path"}
+RESTRUCTURE_REQUIRED_COLS = {"ID", "Path", "new Path"}
+INBOX_REQUIRED_COLS = {"Path"}
+
+CSV_SEP = ";"
+
 # Tokens to exclude from the derived Comments field
 COMMENT_EXCLUSION_TOKENS = frozenset(
     {
