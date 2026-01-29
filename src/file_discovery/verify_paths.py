@@ -20,6 +20,15 @@ from .config import REGISTRY_COLS
 from .io_utils import ensure_columns, load_curated, normalize_strings, write_csv
 
 
+def _path_exists(path_str: object) -> bool:
+    """Return True if *path_str* is a non-empty path string that exists."""
+    if not isinstance(path_str, str):
+        return False
+    if not path_str:
+        return False
+    return Path(path_str).exists()
+
+
 @dataclass(frozen=True)
 class VerifyStats:
     """Statistics from `verify`."""
@@ -96,8 +105,8 @@ def verify(
     has_src_rel = rel_src.notna() & ~rel_src.eq("")
     has_tgt_rel = rel_tgt.notna() & ~rel_tgt.eq("")
 
-    source_abs = pd.Series(None, index=selected.index, dtype="object")
-    target_abs = pd.Series(None, index=selected.index, dtype="object")
+    source_abs = pd.Series(pd.NA, index=selected.index, dtype="string")
+    target_abs = pd.Series(pd.NA, index=selected.index, dtype="string")
 
     source_abs.loc[has_src_rel] = rel_src.loc[has_src_rel].map(
         lambda p: str((source_root / p).resolve())
@@ -106,27 +115,37 @@ def verify(
         lambda p: str((target_root / p).resolve())
     )
 
-    source_exists = source_abs.map(lambda p: Path(p).exists() if p else False)
-    target_exists = target_abs.map(lambda p: Path(p).exists() if p else False)
+    source_exists = source_abs.map(_path_exists)
+    target_exists = target_abs.map(_path_exists)
 
     if create_target_dirs:
         for p in target_abs.dropna():
             Path(p).parent.mkdir(parents=True, exist_ok=True)
 
     status = pd.Series("ok", index=selected.index, dtype="string")
+
+    # Highest priority: missing relative source path
     status.loc[~has_src_rel] = "missing_path"
-    status.loc[has_src_rel & ~source_exists] = "missing_source"
-    status.loc[~has_tgt_rel] = "missing_new_path"
-    status.loc[has_tgt_rel & ~target_exists] = "missing_target"
-    status.loc[source_exists & target_exists] = "ok"
+
+    # Next: missing relative target path (only where status is still ok)
+    mask_ok = status.eq("ok")
+    status.loc[mask_ok & ~has_tgt_rel] = "missing_new_path"
+
+    # Next: missing source file (only where status is still ok)
+    mask_ok = status.eq("ok")
+    status.loc[mask_ok & has_src_rel & ~source_exists] = "missing_source"
+
+    # Next: missing target file (only where status is still ok)
+    mask_ok = status.eq("ok")
+    status.loc[mask_ok & has_tgt_rel & ~target_exists] = "missing_target"
 
     report = pd.DataFrame(
         {
             "ID": selected["ID"].astype("string"),
             "Path": rel_src,
             "new Path": rel_tgt,
-            "source_abs": source_abs.astype("string"),
-            "target_abs": target_abs.astype("string"),
+            "source_abs": source_abs,
+            "target_abs": target_abs,
             "source_exists": source_exists.astype(bool),
             "target_exists": target_exists.astype(bool),
             "status": status.astype("string"),

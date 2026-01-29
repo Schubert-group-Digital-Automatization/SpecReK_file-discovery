@@ -261,6 +261,36 @@ def parse_position(tokens: list[str]) -> str | None:
     return "liquid" if "liquid" in tokens else None
 
 
+def parse_position_token(tokens: list[str]) -> str | None:
+    """Return the filename token that was consumed to produce ``Position``.
+
+    This is used to prevent position tokens (e.g. ``Pellet1S2``) from leaking
+    into ``Comments`` after they have been mapped to a canonical position like
+    ``P1S2``.
+
+    Parameters
+    ----------
+    tokens
+        Token list from the filename.
+
+    Returns
+    -------
+    str or None
+        The raw token that encodes the position (e.g. ``Pellet1S2`` or ``P1S2``),
+        or ``"liquid"`` if that keyword is present. Returns None if no position
+        token exists.
+    """
+    for token in tokens:
+        if RE_PELLET.match(token):
+            return token
+
+    for token in tokens:
+        if RE_POS.match(token):
+            return token
+
+    return "liquid" if "liquid" in tokens else None
+
+
 def build_comments(tokens: list[str], used_tokens: set[str]) -> str | None:
     """Build a comments field from unused tokens.
 
@@ -276,7 +306,11 @@ def build_comments(tokens: list[str], used_tokens: set[str]) -> str | None:
     str or None
         Remaining tokens joined by underscores, or None if nothing remains.
     """
-    remaining = [t for t in tokens if t not in COMMENT_EXCLUSION_TOKENS and t not in used_tokens]
+    remaining = [
+        t
+        for t in tokens
+        if t not in COMMENT_EXCLUSION_TOKENS and t not in used_tokens
+    ]
     comment = "_".join(remaining)
     return comment if comment else None
 
@@ -311,13 +345,32 @@ def parse_file_row(path_rel: str, current_filename: str) -> dict[str, object]:
     nm_value = parse_nm(nm_token, path_rel)
 
     position = parse_position(tokens)
+    position_token = parse_position_token(tokens)
 
-    used: set[str] = set()
-    for value in (measured_material, date_token, nm_token, position):
-        if value is not None:
-            used.add(str(value))
+    consumed: dict[str, set[str]] = {
+        "Measured Material": set(),
+        "Date": set(),
+        "nm": set(),
+        "Position": set(),
+    }
 
-    comments = build_comments(tokens, used)
+    if measured_material is not None:
+        consumed["Measured Material"].add(str(measured_material))
+
+    if date_token is not None:
+        consumed["Date"].add(str(date_token))
+
+    if nm_token is not None:
+        consumed["nm"].add(str(nm_token))
+
+    if position_token is not None:
+        consumed["Position"].add(str(position_token))
+
+    if position is not None:
+        consumed["Position"].add(str(position))
+
+    used_tokens = {t for tokens_for_field in consumed.values() for t in tokens_for_field}
+    comments = build_comments(tokens, used_tokens)
 
     return {
         "ID": pd.NA,

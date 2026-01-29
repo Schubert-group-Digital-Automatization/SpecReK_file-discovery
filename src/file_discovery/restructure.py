@@ -98,9 +98,17 @@ def restructure(
     errors = 0
 
     for _, row in selected.iterrows():
-        rel_src = str(row.get("Path") or "").strip()
-        rel_tgt = str(row.get("new Path") or "").strip()
+        raw_src = row.get("Path")
+        raw_tgt = row.get("new Path")
         file_id = row.get("ID")
+
+        rel_src = "" if pd.isna(raw_src) else str(raw_src).strip()
+        rel_tgt = "" if pd.isna(raw_tgt) else str(raw_tgt).strip()
+
+        if rel_src.lower() in {"nan", "<na>"}:
+            rel_src = ""
+        if rel_tgt.lower() in {"nan", "<na>"}:
+            rel_tgt = ""
 
         if not rel_src:
             actions.append(
