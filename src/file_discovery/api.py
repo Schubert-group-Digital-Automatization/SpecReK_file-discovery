@@ -47,7 +47,7 @@ __all__ = (
 
 def discover(
     base_dir_path: str | Path,
-    file_registry_path: str | Path,
+    curated_csv: str | Path,
     discovery_output_path: str | Path,
     decode_filename: bool = True,
     find_conflicts: bool = True,
@@ -58,7 +58,7 @@ def discover(
     ----------
     base_dir_path
         Base directory to scan recursively.
-    file_registry_path
+    curated_csv
         Path to the curated registry CSV (read-only input).
     discovery_output_path
         Path to the discovery output CSV (inbox) to update in-place.
@@ -75,16 +75,16 @@ def discover(
         ``(inbox_df, stats)`` where ``stats`` is a small dict with counts.
     """
     base_dir = Path(base_dir_path)
-    curated_path = Path(file_registry_path)
+    curated_path = Path(curated_csv)
     inbox_path = Path(discovery_output_path)
 
     # Validate inputs before any IO/parsing/scan logic.
     validate_dir_exists(base_dir, name="base_dir_path")
-    validate_csv_file(curated_path, name="file_registry_path")
+    validate_csv_file(curated_path, name="curated_csv")
     validate_csv_has_required_columns(
         curated_path,
         required=CURATED_REQUIRED_COLS,
-        name="file_registry_path",
+        name="curated_csv",
         sep=";",
     )
     validate_output_parent_exists(inbox_path, name="discovery_output_path")

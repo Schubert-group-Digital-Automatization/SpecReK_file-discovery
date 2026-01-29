@@ -68,7 +68,7 @@ def test_discover_creates_inbox_with_expected_columns_when_missing(
 
     inbox, stats = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=True,
@@ -106,7 +106,7 @@ def test_discover_append_unique_by_path_on_rerun(
 
     inbox1, stats1 = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=True,
@@ -118,7 +118,7 @@ def test_discover_append_unique_by_path_on_rerun(
 
     inbox2, stats2 = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=True,
@@ -151,7 +151,7 @@ def test_discover_case_a_legacy_file_goes_to_inbox_with_blank_id(
 
     inbox, _ = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=True,
@@ -189,7 +189,7 @@ def test_discover_case_b_id_named_file_when_registry_incomplete(
 
     inbox, _ = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=True,
@@ -227,7 +227,7 @@ def test_discover_case_c_registered_file_not_added(
 
     inbox, stats = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=True,
@@ -268,7 +268,7 @@ def test_discover_purges_inbox_by_path_when_conflicts_disabled(
 
     inbox, stats = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=False,
@@ -309,7 +309,7 @@ def test_discover_conflicts_keep_row_and_annotate_conflicts(
 
     inbox, stats = discover(
         base_dir_path=base_dir,
-        file_registry_path=curated_csv,
+        curated_csv=curated_csv,
         discovery_output_path=inbox_csv,
         decode_filename=False,
         find_conflicts=True,

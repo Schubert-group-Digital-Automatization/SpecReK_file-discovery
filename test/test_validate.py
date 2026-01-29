@@ -139,7 +139,7 @@ def test_validate_csv_has_required_columns_passes_for_header_only(tmp_path: Path
     validate_csv_has_required_columns(
         csv_path,
         required={"ID", "Path"},
-        name="file_registry_path",
+        name="curated_csv",
         sep=";",
     )
 
@@ -153,12 +153,12 @@ def test_validate_csv_has_required_columns_raises_for_empty_file(tmp_path: Path)
         validate_csv_has_required_columns(
             csv_path,
             required={"ID", "Path"},
-            name="file_registry_path",
+            name="curated_csv",
             sep=";",
         )
 
     msg = str(excinfo.value)
-    assert "file_registry_path" in msg
+    assert "curated_csv" in msg
     assert str(csv_path.resolve()) in msg
 
 

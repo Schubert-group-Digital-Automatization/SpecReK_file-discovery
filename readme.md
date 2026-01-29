@@ -37,7 +37,7 @@ from file_discovery import discover
 
 inbox, stats = discover(
     base_dir_path="./_Rohdaten_pre",
-    file_registry_path="./measured_files.csv",
+    curated_csv="./measured_files.csv",
     discovery_output_path="./new_files.csv",
     decode_filename=True,
     find_conflicts=True,
