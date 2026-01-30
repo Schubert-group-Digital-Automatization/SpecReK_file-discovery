@@ -116,7 +116,7 @@ def create_new_path(
     suffix_str = suffix.astype("string")
     missing_suffix = suffix_str.isna() | _is_empty_string(suffix_str)
 
-    dt = pd.to_datetime(date_series, dayfirst=True, errors="coerce")
+    dt = pd.to_datetime(date_series, format="%d.%m.%Y", errors="coerce")
     missing_date = dt.isna()
 
     iso = dt.dt.isocalendar()
