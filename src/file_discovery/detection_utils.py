@@ -147,6 +147,7 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
             "nm": merged["nm_cur"],
             "Date": merged["Date_cur"],
             "Position": merged["Position_cur"],
+            "Location": merged["Location_cur"],
             "Operator": merged["Operator_cur"],
             "Device": merged["Device_cur"],
             "Project": merged["Project_cur"],
