@@ -225,6 +225,7 @@ def test_parse_file_row_populates_expected_fields_and_keeps_na_for_unset() -> No
         "nm",
         "Date",
         "Position",
+        "Location",
         "Operator",
         "Device",
         "Project",

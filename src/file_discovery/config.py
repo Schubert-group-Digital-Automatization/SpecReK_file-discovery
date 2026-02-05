@@ -53,6 +53,7 @@ REGISTRY_COLS = (
     "nm",
     "Date",
     "Position",
+    "Location",
     "Operator",
     "Device",
     "Project",

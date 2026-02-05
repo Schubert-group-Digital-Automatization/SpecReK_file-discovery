@@ -382,6 +382,7 @@ def parse_file_row(path_rel: str, current_filename: str) -> dict[str, object]:
         "nm": nm_value,
         "Date": date_str if date_str is not None else pd.NA,
         "Position": position if position is not None else pd.NA,
+        "Location": pd.NA,
         "Operator": operator if operator is not None else pd.NA,
         "Device": pd.NA,
         "Project": pd.NA,
