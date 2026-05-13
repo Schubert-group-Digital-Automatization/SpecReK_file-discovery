@@ -50,6 +50,63 @@ def normalize_strings(df: pd.DataFrame, columns: Iterable[str]) -> None:
             df[col] = df[col].astype("string").str.strip()
 
 
+def normalize_date_column(df: pd.DataFrame, column: str = "Date") -> None:
+    """Normalize a registry date column to ``dd.mm.yyyy``.
+
+    Parameters
+    ----------
+    df
+        Dataframe whose date column should be normalized.
+    column
+        Name of the date column to normalize. If the column does not exist,
+        the dataframe is left unchanged.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Accepted input formats are ``dd.mm.yyyy`` and ``yyyy-mm-dd``. Valid dates
+    are written back as strings in ``dd.mm.yyyy`` format. Empty values are kept
+    as missing values. Invalid non-empty date values raise a ``ValueError``.
+    """
+    if column not in df.columns:
+        return
+
+    values = df[column].astype("string").str.strip()
+    missing = values.isna() | values.eq("")
+
+    parsed_de = pd.to_datetime(
+        values,
+        format="%d.%m.%Y",
+        errors="coerce",
+    )
+
+    parsed_iso = pd.to_datetime(
+        values,
+        format="%Y-%m-%d",
+        errors="coerce",
+    )
+
+    parsed = parsed_de.fillna(parsed_iso)
+
+    invalid = parsed.isna() & ~missing
+
+    if invalid.any():
+        bad_values = values.loc[invalid].drop_duplicates().head(20).tolist()
+
+        raise ValueError(
+            f"Could not parse some values in column {column!r}: {bad_values}"
+        )
+
+    df.loc[~missing, column] = (
+        parsed.loc[~missing]
+        .dt.strftime("%d.%m.%Y")
+        .astype("string")
+    )
+
+
 def load_csv_or_empty(path: Path, columns: Sequence[str]) -> pd.DataFrame:
     """Load a semicolon-separated CSV or return an empty dataframe.
 
@@ -124,6 +181,7 @@ def load_curated(path: Path) -> pd.DataFrame:
     df = load_csv_or_empty(path, REGISTRY_COLS)
     df = normalize_curated_columns(df)
     normalize_strings(df, ("ID", "Path", "Current Filename"))
+    normalize_date_column(df, "Date")
     return df
 
 
@@ -142,6 +200,7 @@ def load_inbox(path: Path) -> pd.DataFrame:
     """
     df = load_csv_or_empty(path, REGISTRY_COLS + INBOX_EXTRA_COLS)
     normalize_strings(df, ("Path",))
+    normalize_date_column(df, "Date")
     return df
 
 

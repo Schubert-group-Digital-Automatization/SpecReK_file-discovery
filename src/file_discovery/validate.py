@@ -25,6 +25,7 @@ CSV contract
 from __future__ import annotations
 
 from pathlib import Path
+import csv
 
 from .config import CSV_SEP
 
@@ -128,7 +129,7 @@ def validate_csv_has_required_columns(
         If `path` exists but is a directory.
     ValueError
         If the file is empty (0 bytes), has no readable header line, the header
-        does not yield any columns when split using `sep`, or if any required
+        does not yield any columns when parsed using `sep`, or if any required
         columns are missing.
     """
     validate_csv_file(path, name=name)
@@ -201,27 +202,50 @@ def _read_csv_header(path: Path, *, sep: str, name: str) -> list[str]:
     Raises
     ------
     ValueError
-        If the header line cannot be read, is missing, or yields no columns when
-        split using `sep`.
+        If the header line cannot be read, is missing, contains empty or
+        duplicate column names, or yields no columns when parsed using `sep`.
     """
+    if not sep:
+        raise ValueError(f"{name}: CSV separator must not be empty")
+
     try:
-        # utf-8-sig removes BOM if present; newline="" avoids universal-newline quirks.
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
-            line = handle.readline()
+            reader = csv.reader(handle, delimiter=sep)
+            try:
+                raw_cols = next(reader)
+            except StopIteration:
+                raise ValueError(f"{name}: CSV has no header line: {path}") from None
     except OSError as exc:
         raise ValueError(f"{name}: cannot read CSV header from: {path}") from exc
 
-    if not line:
-        raise ValueError(f"{name}: CSV has no header line: {path}")
-
-    # Remove trailing newline and split.
-    raw_cols = [c.strip() for c in line.rstrip("\n\r").split(sep)]
-    cols = [c for c in raw_cols if c]
+    cols = [str(col).strip() for col in raw_cols]
 
     if not cols:
         raise ValueError(
             f"{name}: CSV header is empty or not parseable with sep='{sep}': "
             f"{path}"
+        )
+
+    empty_positions = [idx + 1 for idx, col in enumerate(cols) if not col]
+
+    if empty_positions:
+        raise ValueError(
+            f"{name}: CSV header contains empty column name(s) at position(s) "
+            f"{empty_positions}: {path}"
+        )
+
+    seen = set()
+    duplicates = set()
+
+    for col in cols:
+        if col in seen:
+            duplicates.add(col)
+        seen.add(col)
+
+    if duplicates:
+        raise ValueError(
+            f"{name}: CSV header contains duplicate column name(s): "
+            f"{sorted(duplicates)}"
         )
 
     return cols

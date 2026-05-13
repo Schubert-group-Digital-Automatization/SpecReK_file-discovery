@@ -15,16 +15,14 @@ import pandas as pd
 from .config import (
     ALLOWED_EXTENSIONS,
     ALLOW_NUMERIC_EXTENSIONS,
+    COMMENT_EXCLUSION_TOKENS,
     DATE_FORMATS,
     DATE_TOKEN_REGEXES,
     DEFAULT_NM,
-    ID_REGEX,
     KNOWN_PREFIXES,
-    COMMENT_EXCLUSION_TOKENS,
 )
 
 
-ID_RE = re.compile(ID_REGEX)
 RE_DATE_TOKENS = tuple(re.compile(pattern) for pattern in DATE_TOKEN_REGEXES)
 RE_NM_TOKEN = re.compile(r"^(\d{3})nm$")
 RE_POS = re.compile(r"^P\d+S\d+$")
@@ -47,7 +45,11 @@ def is_allowed_file(path: Path) -> bool:
     suffix = path.suffix.lower()
     if suffix in ALLOWED_EXTENSIONS:
         return True
-    return bool(ALLOW_NUMERIC_EXTENSIONS and suffix[1:].isdigit())
+    return bool(
+        ALLOW_NUMERIC_EXTENSIONS
+        and suffix.startswith(".")
+        and suffix[1:].isdigit()
+    )
 
 
 def tokenize(current_filename: str) -> list[str]:
@@ -65,7 +67,7 @@ def tokenize(current_filename: str) -> list[str]:
     """
     if not isinstance(current_filename, str):
         return []
-    return current_filename.split("_")
+    return [token.strip() for token in current_filename.split("_") if token.strip()]
 
 
 def parse_measured_material(tokens: list[str]) -> str | None:
@@ -155,7 +157,7 @@ def parse_date_token(tokens: list[str]) -> str | None:
         The first token matching one of ``DATE_TOKEN_REGEXES``, otherwise None.
     """
     for token in tokens:
-        if any(pattern.match(token) for pattern in RE_DATE_TOKENS):
+        if any(pattern.fullmatch(token) for pattern in RE_DATE_TOKENS):
             return token
     return None
 
@@ -199,7 +201,7 @@ def parse_nm_token(tokens: list[str]) -> str | None:
         The first token matching ``NNNnm``, otherwise None.
     """
     for token in tokens:
-        if RE_NM_TOKEN.match(token):
+        if RE_NM_TOKEN.fullmatch(token):
             return token
     return None
 
@@ -221,11 +223,11 @@ def parse_nm(nm_token: str | None, path_rel: str) -> float:
         finally to ``DEFAULT_NM``.
     """
     if nm_token is not None:
-        match = RE_NM_TOKEN.match(nm_token)
+        match = RE_NM_TOKEN.fullmatch(nm_token)
         if match:
             return float(match.group(1))
 
-    wrapped = f"/{path_rel.strip('/')}/"
+    wrapped = f"/{path_rel.strip('/')}/".lower()
     if "/785nm/" in wrapped:
         return 785.0
     if "/532nm/" in wrapped:
@@ -250,12 +252,12 @@ def parse_position(tokens: list[str]) -> str | None:
         If token ``liquid`` exists, returns ``"liquid"``. Otherwise None.
     """
     for token in tokens:
-        match = RE_PELLET.match(token)
+        match = RE_PELLET.fullmatch(token)
         if match:
             return f"P{match.group(1)}S{match.group(2)}"
 
     for token in tokens:
-        if RE_POS.match(token):
+        if RE_POS.fullmatch(token):
             return token
 
     return "liquid" if "liquid" in tokens else None
@@ -281,11 +283,11 @@ def parse_position_token(tokens: list[str]) -> str | None:
         token exists.
     """
     for token in tokens:
-        if RE_PELLET.match(token):
+        if RE_PELLET.fullmatch(token):
             return token
 
     for token in tokens:
-        if RE_POS.match(token):
+        if RE_POS.fullmatch(token):
             return token
 
     return "liquid" if "liquid" in tokens else None

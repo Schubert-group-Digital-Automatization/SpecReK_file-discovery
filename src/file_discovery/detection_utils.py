@@ -8,13 +8,17 @@ The functions here do not assign IDs for old naming schemes.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
 
-from .config import INBOX_EXTRA_COLS, REGISTRY_COLS
+from .config import ID_REGEX, INBOX_EXTRA_COLS, REGISTRY_COLS
 from .io_utils import ensure_columns, normalize_strings
-from .parsing_util import ID_RE, is_allowed_file, parse_file_row
+from .parsing_util import is_allowed_file, parse_file_row
+
+
+ID_RE = re.compile(ID_REGEX)
 
 ALL_INBOX_COLS = list(REGISTRY_COLS) + list(INBOX_EXTRA_COLS)
 
@@ -104,7 +108,7 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
     and whose ID exists in the curated registry, but the curated row is missing
     ``Path`` and/or ``Current Filename``.
     """
-    is_id_named = discovered["Current Filename"].astype("string").str.match(ID_RE, na=False)
+    is_id_named = discovered["Current Filename"].astype("string").str.fullmatch(ID_RE, na=False)
     candidates = discovered.loc[is_id_named].copy()
     if candidates.empty:
         return pd.DataFrame(columns=ALL_INBOX_COLS)
@@ -115,7 +119,13 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
     normalize_strings(curated_norm, ("ID", "Path", "Current Filename"))
     normalize_strings(candidates, ("ID_candidate", "Path", "Current Filename"))
 
-    curated_norm = curated_norm.loc[~curated_norm["ID"].duplicated(keep=False)].copy()
+    curated_ids = curated_norm["ID"].astype("string").str.strip()
+    curated_ids = curated_ids[curated_ids.notna() & curated_ids.ne("")]
+    duplicate_ids = curated_ids[curated_ids.duplicated(keep=False)]
+
+    if not duplicate_ids.empty:
+        examples = duplicate_ids.drop_duplicates().head(20).tolist()
+        raise ValueError(f"Duplicate ID values in curated registry: {examples}")
 
     merged = candidates.merge(
         curated_norm,
@@ -180,7 +190,11 @@ def build_case1_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
         Inbox rows for allowed files not present in curated (by Path). The ID is
         left blank and metadata is populated from filename decoding.
     """
-    curated_paths = set(curated["Path"].astype("string").dropna().str.strip())
+    curated_paths_series = curated["Path"].astype("string").str.strip()
+    curated_paths_series = curated_paths_series[
+        curated_paths_series.notna() & curated_paths_series.ne("")
+    ]
+    curated_paths = set(curated_paths_series)
     disc_paths = discovered["Path"].astype("string").str.strip()
 
     out = discovered.loc[~disc_paths.isin(curated_paths)].copy()
@@ -223,10 +237,11 @@ def append_unique_by_path(inbox: pd.DataFrame, additions: pd.DataFrame) -> pd.Da
     normalize_strings(inbox_out, ("Path",))
     normalize_strings(additions_out, ("Path",))
 
-    inbox_paths = inbox_out["Path"].astype("string").dropna().str.strip()
+    inbox_paths = inbox_out["Path"].astype("string").str.strip()
+    inbox_paths = inbox_paths[inbox_paths.notna() & inbox_paths.ne("")]
     additions_paths = additions_out["Path"].astype("string").str.strip()
 
     existing = set(inbox_paths)
-    is_new = ~additions_paths.isin(existing)
+    is_new = additions_paths.notna() & additions_paths.ne("") & ~additions_paths.isin(existing)
 
     return pd.concat([inbox_out, additions_out.loc[is_new].copy()], ignore_index=True)

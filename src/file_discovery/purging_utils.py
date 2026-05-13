@@ -63,7 +63,17 @@ def prune_inbox_by_path(inbox: pd.DataFrame, curated: pd.DataFrame) -> pd.DataFr
     normalize_strings(inbox_out, ("Path",))
     normalize_strings(curated_norm, ("Path",))
 
-    curated_paths = set(curated_norm["Path"].astype("string").dropna().str.strip())
+    curated_paths_series = curated_norm["Path"].astype("string").str.strip()
+    curated_paths_series = curated_paths_series[
+        curated_paths_series.notna() & curated_paths_series.ne("")
+    ]
+    duplicate_paths = curated_paths_series[curated_paths_series.duplicated(keep=False)]
+
+    if not duplicate_paths.empty:
+        examples = duplicate_paths.drop_duplicates().head(20).tolist()
+        raise ValueError(f"Duplicate Path values in curated registry: {examples}")
+
+    curated_paths = set(curated_paths_series)
     inbox_paths = inbox_out["Path"].astype("string").str.strip()
 
     keep_mask = ~inbox_paths.isin(curated_paths)
@@ -107,7 +117,9 @@ def _conflict_columns(
             right_num = pd.to_numeric(right, errors="coerce")
             equal = series_equal_na(left_num, right_num)
         else:
-            equal = series_equal_na(left.astype("string"), right.astype("string"))
+            left_str = left.astype("string").str.strip()
+            right_str = right.astype("string").str.strip()
+            equal = series_equal_na(left_str, right_str)
 
         mask = ~equal
         conflict_masks.append((col, mask))
@@ -144,7 +156,16 @@ def prune_inbox_with_conflicts(inbox: pd.DataFrame, curated: pd.DataFrame) -> pd
     curated_marked = curated_norm.copy()
     curated_marked["_in_curated"] = True
 
-    has_path = inbox_out["Path"].notna() & inbox_out["Path"].astype("string").str.len().gt(0)
+    curated_paths = curated_norm["Path"].astype("string").str.strip()
+    curated_paths = curated_paths[curated_paths.notna() & curated_paths.ne("")]
+    duplicate_paths = curated_paths[curated_paths.duplicated(keep=False)]
+
+    if not duplicate_paths.empty:
+        examples = duplicate_paths.drop_duplicates().head(20).tolist()
+        raise ValueError(f"Duplicate Path values in curated registry: {examples}")
+
+    inbox_path_values = inbox_out["Path"].astype("string").str.strip()
+    has_path = inbox_path_values.notna() & inbox_path_values.ne("")
     inbox_with_path = inbox_out.loc[has_path].copy()
 
     joined = inbox_with_path.merge(
@@ -161,7 +182,6 @@ def prune_inbox_with_conflicts(inbox: pd.DataFrame, curated: pd.DataFrame) -> pd
     conflict_rows = found & any_conflict
 
     if conflict_rows.any():
-
         conflict_bits = pd.DataFrame(index=joined.index)
         for col, mask in conflict_masks:
             conflict_bits[col] = col

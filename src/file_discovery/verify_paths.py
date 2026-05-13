@@ -12,7 +12,7 @@ Optionally, it creates target parent directories (YYYY/CW##).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pandas as pd
 
@@ -24,8 +24,12 @@ def _path_exists(path_str: object) -> bool:
     """Return True if *path_str* is a non-empty path string that exists."""
     if not isinstance(path_str, str):
         return False
+
+    path_str = path_str.strip()
+
     if not path_str:
         return False
+
     return Path(path_str).exists()
 
 
@@ -46,12 +50,27 @@ def _apply_query(df: pd.DataFrame, query: str | None) -> pd.DataFrame:
     """Apply a pandas query string if provided."""
     if not query:
         return df
-    return df.query(query)
+
+    try:
+        return df.query(query)
+    except Exception as exc:
+        raise ValueError(f"Invalid query {query!r}") from exc
 
 
 def _as_rel_posix(series: pd.Series) -> pd.Series:
     """Normalize a path column to string with stripped whitespace."""
     return series.astype("string").str.strip()
+
+
+def _validate_relative_posix_path(path_value: str, *, column: str) -> None:
+    """Validate that a registry path is relative and cannot escape its root."""
+    path = PurePosixPath(path_value)
+
+    if path.is_absolute():
+        raise ValueError(f"{column} must be relative, got absolute path: {path_value!r}")
+
+    if ".." in path.parts:
+        raise ValueError(f"{column} must not contain '..': {path_value!r}")
 
 
 def verify(
@@ -77,7 +96,7 @@ def verify(
         Optional pandas query string to restrict which rows are processed.
     create_target_dirs
         If True, create parent directories for targets that have a `new Path`
-        value (for example `<target_root>/YYYY/CW##`).
+        value and an existing source file.
     save_output
         If provided, write the verification report to this path as CSV.
 
@@ -108,18 +127,26 @@ def verify(
     source_abs = pd.Series(pd.NA, index=selected.index, dtype="string")
     target_abs = pd.Series(pd.NA, index=selected.index, dtype="string")
 
+    for path_value in rel_src.loc[has_src_rel]:
+        _validate_relative_posix_path(str(path_value), column="Path")
+
+    for path_value in rel_tgt.loc[has_tgt_rel]:
+        _validate_relative_posix_path(str(path_value), column="new Path")
+
     source_abs.loc[has_src_rel] = rel_src.loc[has_src_rel].map(
-        lambda p: str((source_root / p).resolve())
+        lambda p: str((source_root / str(p)).resolve())
     )
     target_abs.loc[has_tgt_rel] = rel_tgt.loc[has_tgt_rel].map(
-        lambda p: str((target_root / p).resolve())
+        lambda p: str((target_root / str(p)).resolve())
     )
 
     source_exists = source_abs.map(_path_exists)
     target_exists = target_abs.map(_path_exists)
 
     if create_target_dirs:
-        for p in target_abs.dropna():
+        valid_targets = target_abs.loc[has_src_rel & has_tgt_rel & source_exists]
+
+        for p in valid_targets.dropna():
             Path(p).parent.mkdir(parents=True, exist_ok=True)
 
     status = pd.Series("ok", index=selected.index, dtype="string")

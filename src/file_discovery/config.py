@@ -1,9 +1,9 @@
 """Configuration for the file-discovery package."""
 
-# Prefixes to find the Material Type Token
-KNOWN_PREFIXES = ("FSU", "UBT", "TC", "BASF")
+# Prefixes used to identify material-type tokens
+KNOWN_PREFIXES = ("FSU", "UBT", "TC", "BASF", "EH")
 
-# For validation to check if cuarted cvs exists and is valid
+# Required columns for validating registry CSV files
 CURATED_REQUIRED_COLS = {"Path", "Current Filename", "ID"}
 CREATE_NEW_PATH_REQUIRED_COLS = {"ID", "Path", "Date"}
 VERIFY_REQUIRED_COLS = {"ID", "Path", "new Path"}
@@ -15,11 +15,11 @@ CSV_SEP = ";"
 # Tokens to exclude from the derived Comments field
 COMMENT_EXCLUSION_TOKENS = frozenset(
     {
-        "PL", 
-        "liquid", 
-        "MKY", 
-        "MKY-LF", 
-        "LF"
+        "PL",
+        "liquid",
+        "MKY",
+        "MKY-LF",
+        "LF",
     }
 )
 
@@ -40,7 +40,7 @@ DATE_FORMATS = (
     "%Y_%m_%d",
 )
 
-# Default vlaue if no Wavelength is detected either in filename or path.
+# Default Raman wavelength if no wavelength is detected in the filename or path.
 DEFAULT_NM = 532.0
 
 REGISTRY_COLS = (

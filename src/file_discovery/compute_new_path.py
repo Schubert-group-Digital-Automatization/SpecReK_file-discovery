@@ -11,11 +11,11 @@ where `suffix` is derived from the `Path` column (source file path).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pandas as pd
 
-from .config import REGISTRY_COLS
+from .config import ID_REGEX, REGISTRY_COLS
 from .io_utils import ensure_columns, load_curated, normalize_strings, write_csv
 
 
@@ -37,7 +37,11 @@ def _apply_query(df: pd.DataFrame, query: str | None) -> pd.DataFrame:
     """Apply a pandas query string if provided."""
     if not query:
         return df
-    return df.query(query)
+
+    try:
+        return df.query(query)
+    except Exception as exc:
+        raise ValueError(f"Invalid query {query!r}") from exc
 
 
 def _is_empty_string(series: pd.Series) -> pd.Series:
@@ -48,7 +52,6 @@ def _is_empty_string(series: pd.Series) -> pd.Series:
 
 def create_new_path(
     curated_csv: Path,
-    target_root: Path | None = None,
     query: str | None = None,
     overwrite: bool = False,
     save_output: Path | None = None,
@@ -61,16 +64,13 @@ def create_new_path(
         YYYY/CW##/<ID><suffix>
 
     The suffix is taken from the source `Path` column (e.g. `.spc`, `.jdx`).
-    `target_root` is not embedded into `new Path`; it can be used downstream for
-    verification/copying.
+    The result is stored as a relative path so it can later be combined with a
+    target root during verification or copying.
 
     Parameters
     ----------
     curated_csv
         Path to the curated registry CSV.
-    target_root
-        Optional target root path (not embedded). Kept for API symmetry and
-        future validations; not required for computation.
     query
         Optional pandas query string to restrict which rows are processed.
         Example: ``Technique == "Raman" and Operator == "MKY"``.
@@ -90,7 +90,6 @@ def create_new_path(
     Rows are skipped when required inputs are missing: `ID`, `Path` suffix, or
     `Date`. No attempt is made to infer missing values.
     """
-    _ = target_root  # intentionally unused for now (kept for API symmetry)
 
     df = load_curated(curated_csv)
     df = ensure_columns(df, REGISTRY_COLS)
@@ -106,18 +105,26 @@ def create_new_path(
     new_path_series = df.loc[selected_idx, "new Path"].astype("string")
 
     missing_id = id_series.isna() | _is_empty_string(id_series)
-    invalid_id = ~missing_id & ~id_series.str.match(r"^SPR_AP\d+_\d+$", na=False)
+    invalid_id = ~missing_id & ~id_series.str.fullmatch(ID_REGEX, na=False)
 
     missing_path = path_series.isna() | _is_empty_string(path_series)
 
     suffix = pd.Series(None, index=selected_idx, dtype="object")
-    suffix.loc[~missing_path] = path_series.loc[~missing_path].map(lambda p: Path(p).suffix)
+    suffix.loc[~missing_path] = path_series.loc[~missing_path].map(
+        lambda p: PurePosixPath(str(p)).suffix
+    )
 
     suffix_str = suffix.astype("string")
     missing_suffix = suffix_str.isna() | _is_empty_string(suffix_str)
 
-    dt = pd.to_datetime(date_series, format="%d.%m.%Y", errors="coerce")
-    missing_date = dt.isna()
+    missing_date = date_series.isna() | _is_empty_string(date_series)
+
+    dt = pd.Series(pd.NaT, index=selected_idx, dtype="datetime64[ns]")
+    dt.loc[~missing_date] = pd.to_datetime(
+        date_series.loc[~missing_date],
+        format="%d.%m.%Y",
+        errors="raise",
+    )
 
     iso = dt.dt.isocalendar()
     year = iso["year"].astype("Int64")
@@ -137,6 +144,13 @@ def create_new_path(
 
     eligible = ~(missing_id | invalid_id | missing_path | missing_suffix | missing_date)
     to_update = should_write & eligible
+
+    duplicate_new_paths = computed.loc[to_update]
+    duplicate_new_paths = duplicate_new_paths[duplicate_new_paths.duplicated(keep=False)]
+
+    if not duplicate_new_paths.empty:
+        examples = duplicate_new_paths.drop_duplicates().head(20).tolist()
+        raise ValueError(f"Duplicate computed new Path values: {examples}")
 
     df.loc[selected_idx[to_update], "new Path"] = computed.loc[to_update].astype("string")
 

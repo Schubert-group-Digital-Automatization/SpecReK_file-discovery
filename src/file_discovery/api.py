@@ -27,7 +27,6 @@ from .io_utils import ensure_columns, load_curated, load_inbox, write_csv
 from .purging_utils import prune_inbox_by_path, prune_inbox_with_conflicts
 from .restructure import restructure as _restructure
 from .verify_paths import verify as _verify
-
 from .validate import (
     validate_csv_file,
     validate_csv_has_required_columns,
@@ -139,7 +138,6 @@ def discover(
 
 def create_new_path(
     curated_csv: str | Path,
-    target_root: str | Path | None = None,
     query: str | None = None,
     overwrite: bool = False,
     save_output: str | Path | None = None,
@@ -150,9 +148,6 @@ def create_new_path(
     ----------
     curated_csv
         Path to the curated registry CSV.
-    target_root
-        Target root directory for the restructured tree. This value is not
-        embedded into ``new Path``; it is kept for symmetry and downstream use.
     query
         Optional pandas query string to restrict which rows are processed.
     overwrite
@@ -166,7 +161,6 @@ def create_new_path(
         ``(curated_df, stats)``.
     """
     curated_path = Path(curated_csv)
-    target = Path(target_root) if target_root is not None else None
     out_path = Path(save_output) if save_output is not None else None
 
     # Validate inputs before any pandas work inside the implementation.
@@ -182,7 +176,6 @@ def create_new_path(
 
     df, stats = _create_new_path(
         curated_csv=curated_path,
-        target_root=target,
         query=query,
         overwrite=overwrite,
         save_output=out_path,

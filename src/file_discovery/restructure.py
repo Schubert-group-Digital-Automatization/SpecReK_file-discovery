@@ -11,7 +11,7 @@ The filename is assumed to already be `<ID><suffix>` as part of `new Path`.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 
 import pandas as pd
@@ -38,7 +38,22 @@ def _apply_query(df: pd.DataFrame, query: str | None) -> pd.DataFrame:
     """Apply a pandas query string if provided."""
     if not query:
         return df
-    return df.query(query)
+
+    try:
+        return df.query(query)
+    except Exception as exc:
+        raise ValueError(f"Invalid query {query!r}") from exc
+
+
+def _validate_relative_posix_path(path_value: str, *, column: str) -> None:
+    """Validate that a registry path is relative and cannot escape its root."""
+    path = PurePosixPath(path_value)
+
+    if path.is_absolute():
+        raise ValueError(f"{column} must be relative, got absolute path: {path_value!r}")
+
+    if ".." in path.parts:
+        raise ValueError(f"{column} must not contain '..': {path_value!r}")
 
 
 def restructure(
@@ -89,6 +104,14 @@ def restructure(
     selected = _apply_query(df, query).copy()
     selected_count = len(selected)
 
+    new_paths = selected["new Path"].astype("string").str.strip()
+    new_paths = new_paths[new_paths.notna() & new_paths.ne("")]
+    duplicate_new_paths = new_paths[new_paths.duplicated(keep=False)]
+
+    if not duplicate_new_paths.empty:
+        examples = duplicate_new_paths.drop_duplicates().head(20).tolist()
+        raise ValueError(f"Duplicate new Path values in selected rows: {examples}")
+
     actions: list[dict[str, object]] = []
     copied = 0
     skipped_exists = 0
@@ -136,10 +159,13 @@ def restructure(
             skipped_missing_new_path += 1
             continue
 
+        _validate_relative_posix_path(rel_src, column="Path")
+        _validate_relative_posix_path(rel_tgt, column="new Path")
+
         src = (source_root / rel_src).resolve()
         dst = (target_root / rel_tgt).resolve()
 
-        if not src.exists():
+        if not src.is_file():
             actions.append(
                 {
                     "ID": file_id,
@@ -191,7 +217,8 @@ def restructure(
             )
             errors += 1
 
-    report = pd.DataFrame(actions)
+    report_cols = ["ID", "Path", "new Path", "action", "error"]
+    report = pd.DataFrame(actions, columns=report_cols)
     stats = RestructureStats(
         rows_total=int(total),
         rows_selected=int(selected_count),
