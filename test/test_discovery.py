@@ -77,7 +77,7 @@ def test_discover_creates_inbox_with_expected_columns_when_missing(
     assert inbox_csv.exists()
     expected_cols = list(REGISTRY_COLS) + list(INBOX_EXTRA_COLS)
 
-    on_disk = load_inbox(inbox_csv)
+    on_disk, _added = load_inbox(inbox_csv)
     assert list(on_disk.columns) == expected_cols
     assert list(inbox.columns) == expected_cols
 

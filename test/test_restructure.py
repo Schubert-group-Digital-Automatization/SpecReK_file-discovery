@@ -300,3 +300,154 @@ def test_restructure_save_report_writes_csv(
     assert "error" in on_disk.columns
     assert on_disk.loc[0, "action"] == report.loc[0, "action"]
     assert on_disk.loc[0, "ID"] == report.loc[0, "ID"]
+
+
+def test_restructure_duplicate_selected_new_path_raises(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+) -> None:
+    """Duplicate selected target paths should fail before copying."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_02000"
+    df.loc[0, "Path"] = "a/source1.spc"
+    df.loc[0, "new Path"] = "2025/CW01/duplicate.spc"
+    df.loc[1, "ID"] = "SPR_AP1_02001"
+    df.loc[1, "Path"] = "a/source2.spc"
+    df.loc[1, "new Path"] = "2025/CW01/duplicate.spc"
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match="Duplicate new Path"):
+        restructure(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )
+
+
+def test_restructure_directory_source_is_not_copied(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+) -> None:
+    """Directory sources should be skipped because only files are copied."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_02002"
+    df.loc[0, "Path"] = "a/source_dir"
+    df.loc[0, "new Path"] = "2025/CW01/SPR_AP1_02002.spc"
+    write_curated(df, curated_csv)
+
+    src_dir = roots["source_root"] / "a/source_dir"
+    src_dir.mkdir(parents=True)
+
+    report, stats = restructure(
+        curated_csv=curated_csv,
+        source_root=roots["source_root"],
+        target_root=roots["target_root"],
+    )
+
+    assert report.loc[0, "action"] == "skipped_missing_source"
+    assert stats["skipped_missing_source"] == 1
+    assert not (roots["target_root"] / "2025/CW01/SPR_AP1_02002.spc").exists()
+
+
+@pytest.mark.parametrize(
+    ("path_col", "path_value", "expected"),
+    [
+        ("Path", "/absolute/source.spc", "relative"),
+        ("Path", "../escape/source.spc", "must not contain"),
+        ("Path", "bad\x00source.spc", "null byte"),
+        ("new Path", "/absolute/target.spc", "relative"),
+        ("new Path", "../escape/target.spc", "must not contain"),
+        ("new Path", "bad\x00target.spc", "null byte"),
+    ],
+)
+def test_restructure_rejects_unsafe_registry_paths(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+    path_col: str,
+    path_value: str,
+    expected: str,
+) -> None:
+    """Restructure should reject unsafe source and target registry paths."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_02003"
+    df.loc[0, "Path"] = "a/source.spc"
+    df.loc[0, "new Path"] = "2025/CW01/SPR_AP1_02003.spc"
+    df.loc[0, path_col] = path_value
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match=expected):
+        restructure(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )
+
+
+def test_restructure_rejects_source_symlink_escape(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+    tmp_path: Path,
+) -> None:
+    """Resolved source paths may not escape source_root through symlinks."""
+    outside = tmp_path / "outside_source"
+    outside.mkdir()
+    link = roots["source_root"] / "link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_02004"
+    df.loc[0, "Path"] = "link/source.spc"
+    df.loc[0, "new Path"] = "2025/CW01/SPR_AP1_02004.spc"
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match="escapes its root"):
+        restructure(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )
+
+
+def test_restructure_rejects_target_symlink_escape(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+    tmp_path: Path,
+) -> None:
+    """Resolved target paths may not escape target_root through symlinks."""
+    outside = tmp_path / "outside_target"
+    outside.mkdir()
+    link = roots["target_root"] / "link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+    src = roots["source_root"] / "a/source.spc"
+    src.parent.mkdir(parents=True)
+    src.write_bytes(b"DATA")
+
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_02005"
+    df.loc[0, "Path"] = "a/source.spc"
+    df.loc[0, "new Path"] = "link/target.spc"
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match="escapes its root"):
+        restructure(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )

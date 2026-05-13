@@ -29,6 +29,7 @@ from file_discovery.parsing_util import (
     parse_nm_token,
     parse_operator,
     parse_position,
+    parse_position_token,
     parse_sample_type,
     parse_technique,
     tokenize,
@@ -82,10 +83,9 @@ def test_tokenize_splits_on_underscores() -> None:
     assert tokenize("A_B_C") == ["A", "B", "C"]
 
 
-def test_tokenize_preserves_empty_tokens_from_double_underscores() -> None:
-    """Test tokenize preserves empty tokens for consecutive underscores (current contract)."""
-    # parsing_util.tokenize() returns current_filename.split("_") without filtering.
-    assert tokenize("A__B") == ["A", "", "B"]
+def test_tokenize_drops_empty_tokens_from_double_underscores() -> None:
+    """Test tokenize keeps the current empty-token filtering behavior."""
+    assert tokenize("A__B") == ["A", "B"]
 
 
 def test_tokenize_non_string_returns_empty_list() -> None:
@@ -180,9 +180,37 @@ def test_parse_nm_folder_fallback_and_default() -> None:
 def test_parse_position_pellet_pos_and_liquid() -> None:
     """Test position parsing priorities: Pellet -> PxSx, then PxSx, then liquid."""
     assert parse_position(["Pellet1S2"]) == "P1S2"
+    assert parse_position_token(["Pellet1S2"]) == "Pellet1S2"
     assert parse_position(["P3S4"]) == "P3S4"
+    assert parse_position_token(["P3S4"]) == "P3S4"
     assert parse_position(["liquid"]) == "liquid"
+    assert parse_position_token(["liquid"]) == "liquid"
     assert parse_position(["X", "Y"]) is None
+    assert parse_position_token(["X", "Y"]) is None
+
+
+def test_parser_behavior_sensitive_real_filename_tokens() -> None:
+    """Protect representative filename parsing behavior from refactor drift."""
+    token = _make_date_token(DATE_FORMATS[0])
+
+    row_compound = parse_file_row(
+        path_rel="folder/532nm/FSU026_MKY-LF_PL_liquid.spc",
+        current_filename=f"FSU026_MKY-LF_PL_liquid_{token}",
+    )
+    assert row_compound["Measured Material"] == "FSU026"
+    assert row_compound["Sample Type"] == "calibration"
+    assert row_compound["Operator"] == "MKY-LF"
+    assert row_compound["Technique"] == "PL"
+    assert row_compound["Position"] == "liquid"
+    assert row_compound["nm"] == 532.0
+
+    row_split = parse_file_row(
+        path_rel="folder/other/TC005_MKY_LF_P1S2.spc",
+        current_filename="TC005_MKY_LF_P1S2",
+    )
+    assert row_split["Operator"] == "MKY-LF"
+    assert row_split["Technique"] == "Raman"
+    assert row_split["Position"] == "P1S2"
 
 
 def test_build_comments_excludes_used_and_config_exclusions() -> None:

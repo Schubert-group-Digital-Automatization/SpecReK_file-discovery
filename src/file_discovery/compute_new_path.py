@@ -10,13 +10,20 @@ where `suffix` is derived from the `Path` column (source file path).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
 
 import pandas as pd
 
 from .config import ID_REGEX, REGISTRY_COLS
-from .io_utils import ensure_columns, load_curated, normalize_strings, write_csv
+from .io_utils import (
+    apply_query,
+    ensure_columns,
+    is_blank_series,
+    load_curated,
+    normalize_strings,
+    write_csv,
+)
 
 
 @dataclass(frozen=True)
@@ -31,23 +38,6 @@ class NewPathStats:
     skipped_missing_path: int
     skipped_missing_suffix: int
     skipped_missing_date: int
-
-
-def _apply_query(df: pd.DataFrame, query: str | None) -> pd.DataFrame:
-    """Apply a pandas query string if provided."""
-    if not query:
-        return df
-
-    try:
-        return df.query(query)
-    except Exception as exc:
-        raise ValueError(f"Invalid query {query!r}") from exc
-
-
-def _is_empty_string(series: pd.Series) -> pd.Series:
-    """Return boolean mask for empty/blank strings (treat NA as False)."""
-    as_str = series.astype("string")
-    return as_str.str.strip().eq("").fillna(False)
 
 
 def create_new_path(
@@ -89,14 +79,21 @@ def create_new_path(
     -----
     Rows are skipped when required inputs are missing: `ID`, `Path` suffix, or
     `Date`. No attempt is made to infer missing values.
+
+    Raises
+    ------
+    ValueError
+        If any non-empty date in the selected rows cannot be parsed as
+        ``dd.mm.yyyy`` or ``yyyy-mm-dd``. Rows outside the query are not
+        validated.
     """
 
-    df = load_curated(curated_csv)
+    df, _added = load_curated(curated_csv, normalize_dates=False)
     df = ensure_columns(df, REGISTRY_COLS)
     normalize_strings(df, ("ID", "Path", "Date", "new Path"))
 
     df_total = len(df)
-    selected = _apply_query(df, query)
+    selected = apply_query(df, query)
     selected_idx = selected.index
 
     id_series = df.loc[selected_idx, "ID"].astype("string")
@@ -104,10 +101,10 @@ def create_new_path(
     date_series = df.loc[selected_idx, "Date"].astype("string")
     new_path_series = df.loc[selected_idx, "new Path"].astype("string")
 
-    missing_id = id_series.isna() | _is_empty_string(id_series)
+    missing_id = is_blank_series(id_series)
     invalid_id = ~missing_id & ~id_series.str.fullmatch(ID_REGEX, na=False)
 
-    missing_path = path_series.isna() | _is_empty_string(path_series)
+    missing_path = is_blank_series(path_series)
 
     suffix = pd.Series(None, index=selected_idx, dtype="object")
     suffix.loc[~missing_path] = path_series.loc[~missing_path].map(
@@ -115,16 +112,35 @@ def create_new_path(
     )
 
     suffix_str = suffix.astype("string")
-    missing_suffix = suffix_str.isna() | _is_empty_string(suffix_str)
+    missing_suffix = is_blank_series(suffix_str)
 
-    missing_date = date_series.isna() | _is_empty_string(date_series)
+    missing_date = is_blank_series(date_series)
 
-    dt = pd.Series(pd.NaT, index=selected_idx, dtype="datetime64[ns]")
-    dt.loc[~missing_date] = pd.to_datetime(
+    parsed_de = pd.to_datetime(
         date_series.loc[~missing_date],
         format="%d.%m.%Y",
-        errors="raise",
+        errors="coerce",
     )
+    parsed_iso = pd.to_datetime(
+        date_series.loc[~missing_date],
+        format="%Y-%m-%d",
+        errors="coerce",
+    )
+
+    parsed_selected = parsed_de.fillna(parsed_iso)
+    invalid_date = parsed_selected.isna()
+    if invalid_date.any():
+        bad_values = (
+            date_series.loc[~missing_date]
+            .loc[invalid_date]
+            .drop_duplicates()
+            .head(20)
+            .tolist()
+        )
+        raise ValueError(f"Could not parse selected Date values: {bad_values}")
+
+    dt = pd.Series(pd.NaT, index=selected_idx, dtype="datetime64[ns]")
+    dt.loc[~missing_date] = parsed_selected
 
     iso = dt.dt.isocalendar()
     year = iso["year"].astype("Int64")
@@ -139,20 +155,31 @@ def create_new_path(
         + suffix_str
     )
 
-    is_currently_empty = new_path_series.isna() | _is_empty_string(new_path_series)
-    should_write = is_currently_empty if not overwrite else pd.Series(True, index=selected_idx)
+    is_currently_empty = is_blank_series(new_path_series)
+    should_write = (
+        is_currently_empty
+        if not overwrite
+        else pd.Series(True, index=selected_idx, dtype=bool)
+    )
 
     eligible = ~(missing_id | invalid_id | missing_path | missing_suffix | missing_date)
     to_update = should_write & eligible
 
-    duplicate_new_paths = computed.loc[to_update]
-    duplicate_new_paths = duplicate_new_paths[duplicate_new_paths.duplicated(keep=False)]
+    update_idx = to_update[to_update].index
+    candidate_new_path = df["new Path"].astype("string").str.strip()
+    candidate_new_path.loc[update_idx] = computed.loc[update_idx].astype("string")
+    nonempty_new_path = candidate_new_path[
+        candidate_new_path.notna() & candidate_new_path.ne("")
+    ]
+    duplicate_new_paths = nonempty_new_path[
+        nonempty_new_path.duplicated(keep=False)
+    ]
 
     if not duplicate_new_paths.empty:
         examples = duplicate_new_paths.drop_duplicates().head(20).tolist()
-        raise ValueError(f"Duplicate computed new Path values: {examples}")
+        raise ValueError(f"Duplicate new Path values after update: {examples}")
 
-    df.loc[selected_idx[to_update], "new Path"] = computed.loc[to_update].astype("string")
+    df.loc[update_idx, "new Path"] = computed.loc[update_idx].astype("string")
 
     stats = NewPathStats(
         rows_total=df_total,
@@ -168,4 +195,4 @@ def create_new_path(
     if save_output is not None:
         write_csv(df, save_output)
 
-    return df, stats.__dict__
+    return df, asdict(stats)

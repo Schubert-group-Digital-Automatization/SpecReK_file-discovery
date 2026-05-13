@@ -9,10 +9,10 @@ import pandas as pd
 
 from .compute_new_path import create_new_path as _create_new_path
 from .config import (
+    ALL_INBOX_COLS,
     CREATE_NEW_PATH_REQUIRED_COLS,
+    CSV_SEP,
     CURATED_REQUIRED_COLS,
-    INBOX_EXTRA_COLS,
-    REGISTRY_COLS,
     RESTRUCTURE_REQUIRED_COLS,
     VERIFY_REQUIRED_COLS,
 )
@@ -33,8 +33,6 @@ from .validate import (
     validate_dir_exists,
     validate_output_parent_exists,
 )
-
-ALL_INBOX_COLS = list(REGISTRY_COLS) + list(INBOX_EXTRA_COLS)
 
 __all__ = (
     "discover",
@@ -84,15 +82,12 @@ def discover(
         curated_path,
         required=CURATED_REQUIRED_COLS,
         name="curated_csv",
-        sep=";",
+        sep=CSV_SEP,
     )
     validate_output_parent_exists(inbox_path, name="discovery_output_path")
 
-    curated = load_curated(curated_path)
-    inbox = load_inbox(inbox_path)
-
-    curated_added_columns = curated.attrs.get("added_columns", [])
-    inbox_added_columns = inbox.attrs.get("added_columns", [])
+    curated, curated_added_columns = load_curated(curated_path)
+    inbox, inbox_added_columns = load_inbox(inbox_path)
 
     if decode_filename:
         discovered = scan_base_dir(base_dir)
@@ -119,7 +114,7 @@ def discover(
     pruned = before_prune - len(inbox)
 
     inbox = ensure_columns(inbox, ALL_INBOX_COLS)
-    inbox = inbox.reindex(columns=ALL_INBOX_COLS)
+    inbox = inbox.reindex(columns=list(ALL_INBOX_COLS))
 
     write_csv(inbox, inbox_path)
 
@@ -169,7 +164,7 @@ def create_new_path(
         curated_path,
         required=CREATE_NEW_PATH_REQUIRED_COLS,
         name="curated_csv",
-        sep=";",
+        sep=CSV_SEP,
     )
     if out_path is not None:
         validate_output_parent_exists(out_path, name="save_output")
@@ -226,7 +221,7 @@ def verify(
         curated_path,
         required=VERIFY_REQUIRED_COLS,
         name="curated_csv",
-        sep=";",
+        sep=CSV_SEP,
     )
     if out_path is not None:
         validate_output_parent_exists(out_path, name="save_output")
@@ -288,7 +283,7 @@ def restructure(
         curated_path,
         required=RESTRUCTURE_REQUIRED_COLS,
         name="curated_csv",
-        sep=";",
+        sep=CSV_SEP,
     )
     if report_path is not None:
         validate_output_parent_exists(report_path, name="save_report")

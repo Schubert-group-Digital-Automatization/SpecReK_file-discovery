@@ -107,10 +107,11 @@ def _conflict_columns(
         right = joined.get(f"{col}_cur")
 
         if left is None or right is None:
-            mask = pd.Series(True, index=joined.index, dtype="bool")
-            conflict_masks.append((col, mask))
-            any_conflict |= mask
-            continue
+            present = sorted(joined.columns.tolist())
+            raise KeyError(
+                f"Expected columns '{col}_in' and '{col}_cur' in merged frame. "
+                f"Present columns: {present}"
+            )
 
         if col == "nm":
             left_num = pd.to_numeric(left, errors="coerce")
@@ -198,8 +199,17 @@ def prune_inbox_with_conflicts(inbox: pd.DataFrame, curated: pd.DataFrame) -> pd
             .set_index("Path")["conflicts_new"]
         )
 
-        inbox_out["conflicts"] = inbox_out["Path"].map(conflict_map).fillna(
-            inbox_out.get("conflicts", pd.NA)
+        if "conflicts" in inbox_out.columns:
+            existing_conflicts = inbox_out["conflicts"]
+        else:
+            existing_conflicts = pd.Series(
+                pd.NA,
+                index=inbox_out.index,
+                dtype="string",
+            )
+
+        inbox_out["conflicts"] = (
+            inbox_out["Path"].map(conflict_map).fillna(existing_conflicts)
         )
 
     prunable_paths = set(joined.loc[prune_mask, "Path"].astype("string"))

@@ -13,14 +13,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from .config import ID_REGEX, INBOX_EXTRA_COLS, REGISTRY_COLS
+from .config import ALL_INBOX_COLS, ID_REGEX, REGISTRY_COLS
 from .io_utils import ensure_columns, normalize_strings
 from .parsing_util import is_allowed_file, parse_file_row
 
 
 ID_RE = re.compile(ID_REGEX)
-
-ALL_INBOX_COLS = list(REGISTRY_COLS) + list(INBOX_EXTRA_COLS)
 
 
 def _collect_allowed_files(base_dir: Path) -> list[Path]:
@@ -111,7 +109,7 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
     is_id_named = discovered["Current Filename"].astype("string").str.fullmatch(ID_RE, na=False)
     candidates = discovered.loc[is_id_named].copy()
     if candidates.empty:
-        return pd.DataFrame(columns=ALL_INBOX_COLS)
+        return pd.DataFrame(columns=list(ALL_INBOX_COLS))
 
     candidates["ID_candidate"] = candidates["Current Filename"].astype("string")
 
@@ -135,7 +133,7 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
         suffixes=("_disc", "_cur"),
     )
     if merged.empty:
-        return pd.DataFrame(columns=ALL_INBOX_COLS)
+        return pd.DataFrame(columns=list(ALL_INBOX_COLS))
 
     missing_path = merged["Path_cur"].isna() | (merged["Path_cur"].astype("string").str.strip() == "")
     missing_name = merged["Current Filename_cur"].isna() | (
@@ -144,8 +142,9 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
 
     merged = merged.loc[missing_path | missing_name].copy()
     if merged.empty:
-        return pd.DataFrame(columns=ALL_INBOX_COLS)
+        return pd.DataFrame(columns=list(ALL_INBOX_COLS))
 
+    # Keep this mapping explicit because discovered and curated sources differ.
     out = pd.DataFrame(
         {
             "ID": merged["ID_candidate"],
@@ -171,7 +170,7 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
     )
 
     out = ensure_columns(out, ALL_INBOX_COLS)
-    return out[ALL_INBOX_COLS]
+    return out.loc[:, list(ALL_INBOX_COLS)]
 
 
 def build_case1_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.DataFrame:
@@ -198,6 +197,7 @@ def build_case1_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
     disc_paths = discovered["Path"].astype("string").str.strip()
 
     out = discovered.loc[~disc_paths.isin(curated_paths)].copy()
+    # Case-1 rows are unregistered files; workflow fields are intentionally blank.
     out["ID"] = pd.NA
     out["Project"] = pd.NA
     out["Workpackage"] = pd.NA
@@ -205,7 +205,7 @@ def build_case1_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
     out["conflicts"] = pd.NA
 
     out = ensure_columns(out, ALL_INBOX_COLS)
-    return out[ALL_INBOX_COLS]
+    return out.loc[:, list(ALL_INBOX_COLS)]
 
 
 def append_unique_by_path(inbox: pd.DataFrame, additions: pd.DataFrame) -> pd.DataFrame:

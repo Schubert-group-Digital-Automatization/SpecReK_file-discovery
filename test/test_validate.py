@@ -230,6 +230,26 @@ def test_validate_csv_has_required_columns_raises_for_missing_required_columns(
         assert col in msg
 
 
+def test_validate_csv_has_required_columns_raises_for_null_byte_header(
+    tmp_path: Path,
+) -> None:
+    """CSV headers with null bytes should fail explicitly."""
+    csv_path = tmp_path / "bad_null_header.csv"
+    _write_text(csv_path, "ID;Bad\x00Column;Path\n")
+
+    with pytest.raises(ValueError) as excinfo:
+        validate_csv_has_required_columns(
+            csv_path,
+            required={"ID", "Path"},
+            name="curated_csv",
+            sep=";",
+        )
+
+    msg = str(excinfo.value)
+    assert "curated_csv" in msg
+    assert "null byte" in msg.lower()
+
+
 # ------------------------
 # validate_output_parent_exists
 # ------------------------

@@ -10,14 +10,15 @@ The filename is assumed to already be `<ID><suffix>` as part of `new Path`.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from dataclasses import asdict, dataclass
+from pathlib import Path
 import shutil
 
 import pandas as pd
 
 from .config import REGISTRY_COLS
-from .io_utils import ensure_columns, load_curated, normalize_strings, write_csv
+from .io_utils import apply_query, ensure_columns, load_curated, normalize_strings, write_csv
+from .path_utils import resolve_under_root
 
 
 @dataclass(frozen=True)
@@ -32,28 +33,6 @@ class RestructureStats:
     skipped_missing_path: int
     skipped_missing_new_path: int
     errors: int
-
-
-def _apply_query(df: pd.DataFrame, query: str | None) -> pd.DataFrame:
-    """Apply a pandas query string if provided."""
-    if not query:
-        return df
-
-    try:
-        return df.query(query)
-    except Exception as exc:
-        raise ValueError(f"Invalid query {query!r}") from exc
-
-
-def _validate_relative_posix_path(path_value: str, *, column: str) -> None:
-    """Validate that a registry path is relative and cannot escape its root."""
-    path = PurePosixPath(path_value)
-
-    if path.is_absolute():
-        raise ValueError(f"{column} must be relative, got absolute path: {path_value!r}")
-
-    if ".." in path.parts:
-        raise ValueError(f"{column} must not contain '..': {path_value!r}")
 
 
 def restructure(
@@ -96,13 +75,16 @@ def restructure(
     This function performs file operations. It is designed to be idempotent when
     `overwrite=False`: repeated runs will skip already copied targets.
     """
-    df = load_curated(curated_csv)
+    df, _added = load_curated(curated_csv)
     df = ensure_columns(df, REGISTRY_COLS)
     normalize_strings(df, ("ID", "Path", "new Path"))
 
     total = len(df)
-    selected = _apply_query(df, query).copy()
+    selected = apply_query(df, query).copy()
     selected_count = len(selected)
+
+    selected["Path"] = selected["Path"].astype("string").str.strip().fillna("")
+    selected["new Path"] = selected["new Path"].astype("string").str.strip().fillna("")
 
     new_paths = selected["new Path"].astype("string").str.strip()
     new_paths = new_paths[new_paths.notna() & new_paths.ne("")]
@@ -121,17 +103,10 @@ def restructure(
     errors = 0
 
     for _, row in selected.iterrows():
-        raw_src = row.get("Path")
-        raw_tgt = row.get("new Path")
         file_id = row.get("ID")
 
-        rel_src = "" if pd.isna(raw_src) else str(raw_src).strip()
-        rel_tgt = "" if pd.isna(raw_tgt) else str(raw_tgt).strip()
-
-        if rel_src.lower() in {"nan", "<na>"}:
-            rel_src = ""
-        if rel_tgt.lower() in {"nan", "<na>"}:
-            rel_tgt = ""
+        rel_src = str(row.get("Path", "")).strip()
+        rel_tgt = str(row.get("new Path", "")).strip()
 
         if not rel_src:
             actions.append(
@@ -159,11 +134,8 @@ def restructure(
             skipped_missing_new_path += 1
             continue
 
-        _validate_relative_posix_path(rel_src, column="Path")
-        _validate_relative_posix_path(rel_tgt, column="new Path")
-
-        src = (source_root / rel_src).resolve()
-        dst = (target_root / rel_tgt).resolve()
+        src = resolve_under_root(source_root, rel_src, column="Path")
+        dst = resolve_under_root(target_root, rel_tgt, column="new Path")
 
         if not src.is_file():
             actions.append(
@@ -233,4 +205,4 @@ def restructure(
     if save_report is not None:
         write_csv(report, save_report)
 
-    return report, stats.__dict__
+    return report, asdict(stats)

@@ -24,6 +24,7 @@ CSV contract
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from pathlib import Path
 import csv
 
@@ -97,7 +98,7 @@ def validate_csv_file(path: Path, *, name: str) -> None:
 def validate_csv_has_required_columns(
     path: Path,
     *,
-    required: set[str],
+    required: Collection[str],
     name: str,
     sep: str = CSV_SEP,
 ) -> None:
@@ -137,10 +138,11 @@ def validate_csv_has_required_columns(
 
     header = _read_csv_header(resolved, sep=sep, name=name)
     found = set(header)
+    required_set = set(required)
 
-    missing = sorted(required - found)
+    missing = sorted(required_set - found)
     if missing:
-        req_sorted = sorted(required)
+        req_sorted = sorted(required_set)
         found_sorted = sorted(found)
         raise ValueError(
             f"{name} missing required columns at {resolved}. "
@@ -219,6 +221,13 @@ def _read_csv_header(path: Path, *, sep: str, name: str) -> list[str]:
         raise ValueError(f"{name}: cannot read CSV header from: {path}") from exc
 
     cols = [str(col).strip() for col in raw_cols]
+
+    null_cols = [col for col in cols if "\x00" in col]
+    if null_cols:
+        raise ValueError(
+            f"{name}: CSV header contains null byte(s) in column name(s): "
+            f"{null_cols}"
+        )
 
     if not cols:
         raise ValueError(

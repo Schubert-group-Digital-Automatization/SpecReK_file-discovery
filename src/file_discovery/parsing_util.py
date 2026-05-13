@@ -15,14 +15,22 @@ import pandas as pd
 from .config import (
     ALLOWED_EXTENSIONS,
     ALLOW_NUMERIC_EXTENSIONS,
+    CALIBRATION_MATERIAL,
     COMMENT_EXCLUSION_TOKENS,
     DATE_FORMATS,
     DATE_TOKEN_REGEXES,
+    DEFAULT_TECHNIQUE,
     DEFAULT_NM,
     KNOWN_PREFIXES,
+    LIQUID_POSITION_TOKEN,
+    OPERATOR_COMPOUND,
+    OPERATOR_MODIFIER,
+    OPERATOR_SIMPLE,
+    TECHNIQUE_PL_TOKEN,
 )
 
 
+_KNOWN_PREFIXES: tuple[str, ...] = tuple(KNOWN_PREFIXES)
 RE_DATE_TOKENS = tuple(re.compile(pattern) for pattern in DATE_TOKEN_REGEXES)
 RE_NM_TOKEN = re.compile(r"^(\d{3})nm$")
 RE_POS = re.compile(r"^P\d+S\d+$")
@@ -85,7 +93,7 @@ def parse_measured_material(tokens: list[str]) -> str | None:
         token, or None if no tokens exist.
     """
     for token in tokens:
-        if token.startswith(KNOWN_PREFIXES):
+        if token.startswith(_KNOWN_PREFIXES):
             return token
     return tokens[0] if tokens else None
 
@@ -103,7 +111,7 @@ def parse_sample_type(measured_material: str | None) -> str:
     str
         ``"calibration"`` for ``FSU026``, otherwise ``"analyte"``.
     """
-    return "calibration" if measured_material == "FSU026" else "analyte"
+    return "calibration" if measured_material == CALIBRATION_MATERIAL else "analyte"
 
 
 def parse_operator(tokens: list[str]) -> str | None:
@@ -120,10 +128,12 @@ def parse_operator(tokens: list[str]) -> str | None:
         ``"MKY-LF"`` if tokens contain ``MKY-LF`` or ``MKY`` and ``LF``.
         ``"MKY"`` if tokens contain ``MKY``. Otherwise None.
     """
-    if "MKY-LF" in tokens or ("MKY" in tokens and "LF" in tokens):
-        return "MKY-LF"
-    if "MKY" in tokens:
-        return "MKY"
+    if OPERATOR_COMPOUND in tokens or (
+        OPERATOR_SIMPLE in tokens and OPERATOR_MODIFIER in tokens
+    ):
+        return OPERATOR_COMPOUND
+    if OPERATOR_SIMPLE in tokens:
+        return OPERATOR_SIMPLE
     return None
 
 
@@ -140,7 +150,7 @@ def parse_technique(tokens: list[str]) -> str:
     str
         ``"PL"`` if token ``PL`` is present, otherwise ``"Raman"``.
     """
-    return "PL" if "PL" in tokens else "Raman"
+    return TECHNIQUE_PL_TOKEN if TECHNIQUE_PL_TOKEN in tokens else DEFAULT_TECHNIQUE
 
 
 def parse_date_token(tokens: list[str]) -> str | None:
@@ -236,8 +246,38 @@ def parse_nm(nm_token: str | None, path_rel: str) -> float:
     return float(DEFAULT_NM)
 
 
+def resolve_position(tokens: list[str]) -> tuple[str | None, str | None]:
+    """Return ``(canonical_position, raw_token_consumed)``.
+
+    Parameters
+    ----------
+    tokens
+        Token list from the filename.
+
+    Returns
+    -------
+    tuple[str | None, str | None]
+        Canonical position and the raw consumed token. Pellet tokens like
+        ``Pellet1S2`` are converted to ``P1S2`` while the raw token is returned
+        separately for comment exclusion.
+    """
+    for token in tokens:
+        match = RE_PELLET.fullmatch(token)
+        if match:
+            return f"P{match.group(1)}S{match.group(2)}", token
+
+    for token in tokens:
+        if RE_POS.fullmatch(token):
+            return token, token
+
+    if LIQUID_POSITION_TOKEN in tokens:
+        return LIQUID_POSITION_TOKEN, LIQUID_POSITION_TOKEN
+
+    return None, None
+
+
 def parse_position(tokens: list[str]) -> str | None:
-    """Parse position information.
+    """Parse canonical position information.
 
     Parameters
     ----------
@@ -251,16 +291,8 @@ def parse_position(tokens: list[str]) -> str | None:
         Plain position tokens like ``P1S2`` are returned unchanged.
         If token ``liquid`` exists, returns ``"liquid"``. Otherwise None.
     """
-    for token in tokens:
-        match = RE_PELLET.fullmatch(token)
-        if match:
-            return f"P{match.group(1)}S{match.group(2)}"
-
-    for token in tokens:
-        if RE_POS.fullmatch(token):
-            return token
-
-    return "liquid" if "liquid" in tokens else None
+    position, _ = resolve_position(tokens)
+    return position
 
 
 def parse_position_token(tokens: list[str]) -> str | None:
@@ -282,15 +314,8 @@ def parse_position_token(tokens: list[str]) -> str | None:
         or ``"liquid"`` if that keyword is present. Returns None if no position
         token exists.
     """
-    for token in tokens:
-        if RE_PELLET.fullmatch(token):
-            return token
-
-    for token in tokens:
-        if RE_POS.fullmatch(token):
-            return token
-
-    return "liquid" if "liquid" in tokens else None
+    _, token = resolve_position(tokens)
+    return token
 
 
 def build_comments(tokens: list[str], used_tokens: set[str]) -> str | None:
@@ -346,32 +371,25 @@ def parse_file_row(path_rel: str, current_filename: str) -> dict[str, object]:
     nm_token = parse_nm_token(tokens)
     nm_value = parse_nm(nm_token, path_rel)
 
-    position = parse_position(tokens)
-    position_token = parse_position_token(tokens)
+    position, position_token = resolve_position(tokens)
 
-    consumed: dict[str, set[str]] = {
-        "Measured Material": set(),
-        "Date": set(),
-        "nm": set(),
-        "Position": set(),
-    }
+    used_tokens: set[str] = set()
 
     if measured_material is not None:
-        consumed["Measured Material"].add(str(measured_material))
+        used_tokens.add(str(measured_material))
 
     if date_token is not None:
-        consumed["Date"].add(str(date_token))
+        used_tokens.add(str(date_token))
 
     if nm_token is not None:
-        consumed["nm"].add(str(nm_token))
+        used_tokens.add(str(nm_token))
 
     if position_token is not None:
-        consumed["Position"].add(str(position_token))
+        used_tokens.add(str(position_token))
 
     if position is not None:
-        consumed["Position"].add(str(position))
+        used_tokens.add(str(position))
 
-    used_tokens = {t for tokens_for_field in consumed.values() for t in tokens_for_field}
     comments = build_comments(tokens, used_tokens)
 
     return {

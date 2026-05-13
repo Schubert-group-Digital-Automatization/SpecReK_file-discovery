@@ -210,3 +210,98 @@ def test_create_new_path_save_output_writes_csv(
     new_path = str(on_disk.loc[0, "new Path"])
     assert new_path.endswith(".jdx")
     assert new_path == out_df.loc[0, "new Path"]
+
+
+def test_create_new_path_counts_missing_dates(
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+) -> None:
+    """Rows with missing dates should be skipped and counted."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_00010"
+    df.loc[0, "Path"] = "a/b/c.spc"
+    df.loc[0, "Date"] = pd.NA
+    df.loc[0, "new Path"] = pd.NA
+
+    write_curated(df, curated_csv)
+
+    out_df, stats = create_new_path(curated_csv=curated_csv)
+
+    assert pd.isna(out_df.loc[0, "new Path"])
+    assert stats["skipped_missing_date"] == 1
+    assert stats["updated"] == 0
+
+
+def test_create_new_path_malformed_selected_date_raises(
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+) -> None:
+    """Malformed non-empty dates in selected rows should raise."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_00011"
+    df.loc[0, "Path"] = "a/b/c.spc"
+    df.loc[0, "Date"] = "not-a-date"
+    df.loc[0, "new Path"] = pd.NA
+
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match="Date"):
+        create_new_path(curated_csv=curated_csv)
+
+
+def test_create_new_path_does_not_validate_dates_outside_query(
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+) -> None:
+    """Malformed dates outside the query should not block selected updates."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_00012"
+    df.loc[0, "Path"] = "a/b/c.spc"
+    df.loc[0, "Date"] = "2025-01-01"
+    df.loc[0, "new Path"] = pd.NA
+    df.loc[0, "Technique"] = "Raman"
+
+    df.loc[1, "ID"] = "SPR_AP1_00013"
+    df.loc[1, "Path"] = "a/b/d.spc"
+    df.loc[1, "Date"] = "not-a-date"
+    df.loc[1, "new Path"] = pd.NA
+    df.loc[1, "Technique"] = "PL"
+
+    write_curated(df, curated_csv)
+
+    out_df, stats = create_new_path(
+        curated_csv=curated_csv,
+        query='Technique == "Raman"',
+    )
+
+    assert pd.notna(out_df.loc[0, "new Path"])
+    assert pd.isna(out_df.loc[1, "new Path"])
+    assert stats["updated"] == 1
+
+
+def test_create_new_path_duplicate_full_candidate_output_raises(
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+) -> None:
+    """Computed paths should be checked against existing full output values."""
+    df = curated_df.copy()
+    duplicate_path = "2025/CW01/SPR_AP1_00014.spc"
+
+    df.loc[0, "ID"] = "SPR_AP1_00014"
+    df.loc[0, "Path"] = "a/b/c.spc"
+    df.loc[0, "Date"] = "01.01.2025"
+    df.loc[0, "new Path"] = pd.NA
+
+    df.loc[1, "ID"] = "SPR_AP1_99999"
+    df.loc[1, "Path"] = "x/y/z.spc"
+    df.loc[1, "Date"] = "01.01.2025"
+    df.loc[1, "new Path"] = duplicate_path
+
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match="Duplicate new Path"):
+        create_new_path(curated_csv=curated_csv)

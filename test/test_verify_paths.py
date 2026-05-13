@@ -262,3 +262,125 @@ def test_verify_save_output_writes_report_csv(
     assert len(on_disk) == len(report)
     assert on_disk.loc[0, "status"] == report.loc[0, "status"]
     assert on_disk.loc[0, "ID"] == report.loc[0, "ID"]
+
+
+@pytest.mark.parametrize(
+    ("path_value", "expected"),
+    [
+        ("/absolute/source.spc", "relative"),
+        ("../escape/source.spc", "must not contain"),
+        ("bad\x00source.spc", "null byte"),
+    ],
+)
+def test_verify_rejects_unsafe_source_paths(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+    path_value: str,
+    expected: str,
+) -> None:
+    """Source registry paths must be relative and safe."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_01000"
+    df.loc[0, "Path"] = path_value
+    df.loc[0, "new Path"] = "2025/CW01/SPR_AP1_01000.spc"
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match=expected):
+        verify(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )
+
+
+@pytest.mark.parametrize(
+    ("new_path_value", "expected"),
+    [
+        ("/absolute/target.spc", "relative"),
+        ("../escape/target.spc", "must not contain"),
+        ("bad\x00target.spc", "null byte"),
+    ],
+)
+def test_verify_rejects_unsafe_target_paths(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+    new_path_value: str,
+    expected: str,
+) -> None:
+    """Target registry paths must be relative and safe."""
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_01001"
+    df.loc[0, "Path"] = "a/b/source.spc"
+    df.loc[0, "new Path"] = new_path_value
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match=expected):
+        verify(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )
+
+
+def test_verify_rejects_source_symlink_escape(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+    tmp_path: Path,
+) -> None:
+    """Resolved source paths may not escape source_root through symlinks."""
+    outside = tmp_path / "outside_source"
+    outside.mkdir()
+    link = roots["source_root"] / "link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_01002"
+    df.loc[0, "Path"] = "link/source.spc"
+    df.loc[0, "new Path"] = "2025/CW01/SPR_AP1_01002.spc"
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match="escapes its root"):
+        verify(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )
+
+
+def test_verify_rejects_target_symlink_escape(
+    roots: dict[str, Path],
+    curated_csv: Path,
+    curated_df: pd.DataFrame,
+    write_curated: Callable[[pd.DataFrame, Path], None],
+    tmp_path: Path,
+) -> None:
+    """Resolved target paths may not escape target_root through symlinks."""
+    outside = tmp_path / "outside_target"
+    outside.mkdir()
+    link = roots["target_root"] / "link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+    df = curated_df.copy()
+    df.loc[0, "ID"] = "SPR_AP1_01003"
+    df.loc[0, "Path"] = "a/b/source.spc"
+    df.loc[0, "new Path"] = "link/target.spc"
+    write_curated(df, curated_csv)
+
+    with pytest.raises(ValueError, match="escapes its root"):
+        verify(
+            curated_csv=curated_csv,
+            source_root=roots["source_root"],
+            target_root=roots["target_root"],
+        )
