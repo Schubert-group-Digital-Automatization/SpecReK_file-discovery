@@ -278,6 +278,8 @@ def test_create_new_path_does_not_validate_dates_outside_query(
     )
 
     assert pd.notna(out_df.loc[0, "new Path"])
+    assert out_df.loc[0, "Date"] == "01.01.2025"
+    assert out_df.loc[1, "Date"] == "not-a-date"
     assert pd.isna(out_df.loc[1, "new Path"])
     assert stats["updated"] == 1
 

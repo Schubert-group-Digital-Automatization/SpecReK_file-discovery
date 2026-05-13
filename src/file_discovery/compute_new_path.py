@@ -45,7 +45,7 @@ def create_new_path(
     query: str | None = None,
     overwrite: bool = False,
     save_output: Path | None = None,
-) -> tuple[pd.DataFrame, dict]:
+) -> tuple[pd.DataFrame, dict[str, int]]:
     """
     Populate the `new Path` column in a curated registry CSV.
 
@@ -141,6 +141,9 @@ def create_new_path(
 
     dt = pd.Series(pd.NaT, index=selected_idx, dtype="datetime64[ns]")
     dt.loc[~missing_date] = parsed_selected
+    df.loc[date_series.loc[~missing_date].index, "Date"] = (
+        parsed_selected.dt.strftime("%d.%m.%Y").astype("string")
+    )
 
     iso = dt.dt.isocalendar()
     year = iso["year"].astype("Int64")

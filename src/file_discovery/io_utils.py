@@ -233,8 +233,22 @@ def normalize_curated_columns(df: pd.DataFrame) -> pd.DataFrame:
     This maps legacy German column names (e.g. ``Projekt``) to the English schema.
     """
     df = df.rename(columns=lambda name: str(name).strip())
-    if "Projekt" in df.columns and "Project" not in df.columns:
-        df = df.rename(columns={"Projekt": "Project"})
+
+    if "Projekt" not in df.columns:
+        return df
+
+    legacy_project = df["Projekt"].astype("string").str.strip()
+    legacy_has_values = legacy_project.notna() & legacy_project.ne("")
+
+    if "Project" not in df.columns:
+        df["Project"] = pd.NA
+
+    project = df["Project"].astype("string").str.strip()
+    project_is_blank = project.isna() | project.eq("")
+    df.loc[project_is_blank & legacy_has_values, "Project"] = legacy_project.loc[
+        project_is_blank & legacy_has_values
+    ]
+    df = df.drop(columns=["Projekt"])
     return df
 
 
@@ -260,6 +274,11 @@ def load_curated(
     """
     df, added = load_csv_or_empty(path, REGISTRY_COLS)
     df = normalize_curated_columns(df)
+    df = ensure_columns(df, REGISTRY_COLS)
+    if "Project" in df.columns and "Project" in added:
+        project_values = df["Project"].astype("string").str.strip()
+        if (project_values.notna() & project_values.ne("")).any():
+            added = [col for col in added if col != "Project"]
     normalize_strings(df, ("ID", "Path", "Current Filename"))
     if normalize_dates:
         normalize_date_column(df, "Date")

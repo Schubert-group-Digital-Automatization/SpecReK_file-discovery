@@ -59,7 +59,7 @@ def verify(
     query: str | None = None,
     create_target_dirs: bool = False,
     save_output: Path | None = None,
-) -> tuple[pd.DataFrame, dict]:
+) -> tuple[pd.DataFrame, dict[str, int]]:
     """
     Verify source and target filesystem paths for entries in a curated registry.
 
@@ -75,7 +75,7 @@ def verify(
         Optional pandas query string to restrict which rows are processed.
     create_target_dirs
         If True, create parent directories for targets that have a `new Path`
-        value and an existing source file.
+        value and an existing source path.
     save_output
         If provided, write the verification report to this path as CSV.
 

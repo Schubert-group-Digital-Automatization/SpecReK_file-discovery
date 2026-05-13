@@ -43,7 +43,7 @@ def restructure(
     overwrite: bool = False,
     create_target_dirs: bool = True,
     save_report: Path | None = None,
-) -> tuple[pd.DataFrame, dict]:
+) -> tuple[pd.DataFrame, dict[str, int]]:
     """
     Copy files from source_root/Path to target_root/new Path.
 

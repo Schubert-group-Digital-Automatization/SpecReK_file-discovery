@@ -7,7 +7,12 @@ from pathlib import Path
 import pandas as pd
 
 from file_discovery.config import REGISTRY_COLS
-from file_discovery.io_utils import ensure_columns, load_csv_or_empty, write_csv
+from file_discovery.io_utils import (
+    ensure_columns,
+    load_csv_or_empty,
+    load_curated,
+    write_csv,
+)
 
 
 def test_ensure_columns_returns_copy_without_mutating_input() -> None:
@@ -42,3 +47,51 @@ def test_write_csv_uses_utf8_sig_and_semicolon(tmp_path: Path) -> None:
     assert raw.startswith(b"\xef\xbb\xbf")
     text = raw.decode("utf-8-sig")
     assert text.splitlines()[0] == "ID;Path"
+
+
+def test_load_curated_maps_legacy_projekt_to_project(tmp_path: Path) -> None:
+    """Legacy Projekt should populate canonical Project and not remain as output."""
+    path = tmp_path / "legacy.csv"
+    df = pd.DataFrame(
+        {
+            "ID": ["SPR_AP1_00001"],
+            "Path": ["a/b/file.spc"],
+            "Current Filename": ["file"],
+            "Projekt": ["LegacyProject"],
+        }
+    )
+    write_csv(df, path)
+
+    out, added = load_curated(path)
+
+    assert out.loc[0, "Project"] == "LegacyProject"
+    assert "Projekt" not in out.columns
+    assert "Project" not in added
+
+
+def test_load_curated_keeps_nonempty_project_over_legacy_projekt(tmp_path: Path) -> None:
+    """Canonical Project values should not be overwritten by legacy Projekt."""
+    path = tmp_path / "legacy_and_canonical.csv"
+    df = pd.DataFrame(
+        {
+            "ID": ["SPR_AP1_00001"],
+            "Path": ["a/b/file.spc"],
+            "Current Filename": ["file"],
+            "Project": ["CanonicalProject"],
+            "Projekt": ["LegacyProject"],
+        }
+    )
+    write_csv(df, path)
+
+    out, added = load_curated(path)
+
+    assert out.loc[0, "Project"] == "CanonicalProject"
+    assert "Projekt" not in out.columns
+    assert "Project" not in added
+
+
+def test_py_typed_marker_exists() -> None:
+    """Package-data declaration should point to an existing marker file."""
+    marker = Path(__file__).parents[1] / "src" / "file_discovery" / "py.typed"
+
+    assert marker.exists()
