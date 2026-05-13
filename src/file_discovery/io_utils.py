@@ -76,7 +76,7 @@ def load_csv_or_empty(path: Path, columns: Sequence[str]) -> pd.DataFrame:
         df.attrs["added_columns"] = list(columns)
         return df
 
-    df = pd.read_csv(path, sep=";", dtype="string").dropna(how="all")
+    df = pd.read_csv(path, sep=";", dtype="string", encoding="utf-8-sig").dropna(how="all")
     df = df.rename(columns=lambda name: str(name).strip())
 
     missing = [col for col in columns if col not in df.columns]
@@ -160,4 +160,6 @@ def write_csv(df: pd.DataFrame, path: Path) -> None:
     None
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, sep=";", index=False, encoding="utf-8")
+    df = df.copy()
+    df.columns = [str(col).strip() for col in df.columns]
+    df.to_csv(path, sep=";", index=False, encoding="utf-8-sig")
