@@ -212,7 +212,11 @@ def prune_inbox_with_conflicts(inbox: pd.DataFrame, curated: pd.DataFrame) -> pd
             inbox_out["Path"].map(conflict_map).fillna(existing_conflicts)
         )
 
-    prunable_paths = set(joined.loc[prune_mask, "Path"].astype("string"))
-    inbox_paths = inbox_out["Path"].astype("string")
+    prunable_paths_series = joined.loc[prune_mask, "Path"].astype("string").str.strip()
+    prunable_paths_series = prunable_paths_series[
+        prunable_paths_series.notna() & prunable_paths_series.ne("")
+    ]
+    prunable_paths = set(prunable_paths_series)
+    inbox_paths = inbox_out["Path"].astype("string").str.strip()
 
     return inbox_out.loc[~inbox_paths.isin(prunable_paths)].copy()

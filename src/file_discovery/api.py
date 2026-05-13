@@ -97,9 +97,14 @@ def discover(
     case2 = build_case2_rows(discovered, curated)
     case1 = build_case1_rows(discovered, curated)
 
-    case2_paths = set(case2["Path"].astype("string").dropna())
+    case2_paths_series = case2["Path"].astype("string").str.strip()
+    case2_paths_series = case2_paths_series[
+        case2_paths_series.notna() & case2_paths_series.ne("")
+    ]
+    case2_paths = set(case2_paths_series)
     if case2_paths:
-        case1 = case1.loc[~case1["Path"].astype("string").isin(case2_paths)].copy()
+        case1_paths = case1["Path"].astype("string").str.strip()
+        case1 = case1.loc[~case1_paths.isin(case2_paths)].copy()
 
     before = len(inbox)
     inbox = append_unique_by_path(inbox, case2)
