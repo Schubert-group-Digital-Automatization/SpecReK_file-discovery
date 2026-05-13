@@ -41,7 +41,8 @@ ALLOWED_EXTENSIONS: Final[frozenset[str]] = frozenset({".spc", ".jdx", ".jcamp"}
 # extensions such as .0, .1, .2. Set to True to include these files.
 ALLOW_NUMERIC_EXTENSIONS: Final[bool] = True
 
-# Format of accepted IDs
+# Format of accepted IDs. Anchors are intentionally kept for compatibility with
+# possible external ``re.match`` callers, even though internal checks use fullmatch.
 ID_REGEX: Final[str] = r"^SPR_AP\d+_\d+$"
 
 DATE_TOKEN_REGEXES: Final[tuple[str, ...]] = (
@@ -79,8 +80,7 @@ REGISTRY_COLS: Final[tuple[str, ...]] = (
 )
 
 INBOX_EXTRA_COLS: Final[tuple[str, ...]] = ("discovery", "conflicts")
-ALL_INBOX_COLS: Final[tuple[str, ...]]
-ALL_INBOX_COLS = REGISTRY_COLS + INBOX_EXTRA_COLS
+ALL_INBOX_COLS: Final[tuple[str, ...]] = REGISTRY_COLS + INBOX_EXTRA_COLS
 
 PRUNE_EXCLUDE_COLS: Final[frozenset[str]] = frozenset(
     {

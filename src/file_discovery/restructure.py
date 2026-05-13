@@ -103,10 +103,10 @@ def restructure(
     errors = 0
 
     for _, row in selected.iterrows():
-        file_id = row.get("ID")
+        file_id = row["ID"]
 
-        rel_src = str(row.get("Path", "")).strip()
-        rel_tgt = str(row.get("new Path", "")).strip()
+        rel_src = str(row["Path"]).strip()
+        rel_tgt = str(row["new Path"]).strip()
 
         if not rel_src:
             actions.append(

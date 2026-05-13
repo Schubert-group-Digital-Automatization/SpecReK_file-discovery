@@ -124,6 +124,8 @@ def verify(
 
     status = pd.Series("ok", index=selected.index, dtype="string")
 
+    # Recompute mask_ok before each lower-priority assignment so rows already
+    # marked with a higher-priority status cannot be overwritten.
     # Highest priority: missing relative source path
     status.loc[~has_src_rel] = "missing_path"
 

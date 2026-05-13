@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from .config import ALL_INBOX_COLS, ID_REGEX, REGISTRY_COLS
-from .io_utils import ensure_columns, normalize_strings
+from .io_utils import ensure_columns, is_blank_series, normalize_strings
 from .parsing_util import is_allowed_file, parse_file_row
 
 
@@ -135,16 +135,15 @@ def build_case2_rows(discovered: pd.DataFrame, curated: pd.DataFrame) -> pd.Data
     if merged.empty:
         return pd.DataFrame(columns=list(ALL_INBOX_COLS))
 
-    missing_path = merged["Path_cur"].isna() | (merged["Path_cur"].astype("string").str.strip() == "")
-    missing_name = merged["Current Filename_cur"].isna() | (
-        merged["Current Filename_cur"].astype("string").str.strip() == ""
-    )
+    missing_path = is_blank_series(merged["Path_cur"])
+    missing_name = is_blank_series(merged["Current Filename_cur"])
 
     merged = merged.loc[missing_path | missing_name].copy()
     if merged.empty:
         return pd.DataFrame(columns=list(ALL_INBOX_COLS))
 
-    # Keep this mapping explicit because discovered and curated sources differ.
+    # Keep this mapping explicit: _disc and _cur source columns are intentionally
+    # selected field by field because discovered and curated sources differ.
     out = pd.DataFrame(
         {
             "ID": merged["ID_candidate"],
