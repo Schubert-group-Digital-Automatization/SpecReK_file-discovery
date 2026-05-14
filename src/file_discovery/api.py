@@ -13,6 +13,8 @@ from .config import (
     CREATE_NEW_PATH_REQUIRED_COLS,
     CSV_SEP,
     CURATED_REQUIRED_COLS,
+    INBOX_REQUIRED_COLS,
+    REGISTRY_COLS,
     RESTRUCTURE_REQUIRED_COLS,
     VERIFY_REQUIRED_COLS,
 )
@@ -23,7 +25,15 @@ from .detection_utils import (
     scan_base_dir,
     scan_base_dir_minimal,
 )
-from .io_utils import ensure_columns, is_blank_series, load_curated, load_inbox, write_csv
+from .io_utils import (
+    ensure_columns,
+    is_blank_series,
+    load_curated,
+    load_inbox,
+    normalize_date_column,
+    normalize_strings,
+    write_csv,
+)
 from .purging_utils import prune_inbox_by_path, prune_inbox_with_conflicts
 from .restructure import restructure as _restructure
 from .validate import (
@@ -39,7 +49,157 @@ __all__ = (
     "create_new_path",
     "verify",
     "restructure",
+    "read_curated_csv",
+    "read_inbox_csv",
+    "write_curated_csv",
+    "write_inbox_csv",
+    "validate_curated_csv",
+    "validate_inbox_csv",
 )
+
+
+def _schema_first_columns(df: pd.DataFrame, schema: tuple[str, ...]) -> list[str]:
+    """Return schema columns first and any extra columns afterward."""
+    return list(schema) + [col for col in df.columns if col not in schema]
+
+
+def _prepare_registry_csv_frame(
+    df: pd.DataFrame,
+    schema: tuple[str, ...],
+) -> pd.DataFrame:
+    """Prepare a dataframe for package-owned CSV writing."""
+    prepared = df.rename(columns=lambda name: str(name).strip())
+    prepared = ensure_columns(prepared, schema)
+    normalize_strings(prepared, ("ID", "Path", "Current Filename"))
+    normalize_date_column(prepared, "Date")
+    return prepared.loc[:, _schema_first_columns(prepared, schema)]
+
+
+def read_curated_csv(
+    path: str | Path,
+    *,
+    normalize_dates: bool = True,
+) -> pd.DataFrame:
+    """Read a curated registry CSV with package normalization.
+
+    Parameters
+    ----------
+    path
+        Path to the curated registry CSV.
+    normalize_dates
+        If True, normalize and validate the ``Date`` column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Schema-complete curated dataframe with registry columns first.
+    """
+    df, _added = load_curated(Path(path), normalize_dates=normalize_dates)
+    return df.loc[:, _schema_first_columns(df, REGISTRY_COLS)]
+
+
+def read_inbox_csv(path: str | Path) -> pd.DataFrame:
+    """Read an inbox CSV with package normalization.
+
+    Parameters
+    ----------
+    path
+        Path to the inbox CSV.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Schema-complete inbox dataframe with inbox columns first.
+    """
+    df, _added = load_inbox(Path(path))
+    return df.loc[:, _schema_first_columns(df, ALL_INBOX_COLS)]
+
+
+def write_curated_csv(df: pd.DataFrame, path: str | Path) -> None:
+    """Write a curated registry CSV with package formatting.
+
+    Parameters
+    ----------
+    df
+        Curated dataframe to write.
+    path
+        Output CSV path.
+
+    Returns
+    -------
+    None
+    """
+    out_path = Path(path)
+    validate_output_parent_exists(out_path, name="path")
+    write_csv(_prepare_registry_csv_frame(df, REGISTRY_COLS), out_path)
+
+
+def write_inbox_csv(df: pd.DataFrame, path: str | Path) -> None:
+    """Write an inbox CSV with package formatting.
+
+    Parameters
+    ----------
+    df
+        Inbox dataframe to write.
+    path
+        Output CSV path.
+
+    Returns
+    -------
+    None
+    """
+    out_path = Path(path)
+    validate_output_parent_exists(out_path, name="path")
+    write_csv(_prepare_registry_csv_frame(df, ALL_INBOX_COLS), out_path)
+
+
+def validate_curated_csv(path: str | Path) -> None:
+    """Validate a curated registry CSV for package workflows.
+
+    Parameters
+    ----------
+    path
+        Path to the curated registry CSV.
+
+    Returns
+    -------
+    None
+    """
+    curated_path = Path(path)
+    validate_csv_file(curated_path, name="curated_csv")
+    validate_csv_has_required_columns(
+        curated_path,
+        required=CURATED_REQUIRED_COLS,
+        name="curated_csv",
+        sep=CSV_SEP,
+    )
+    load_curated(curated_path)
+
+
+def validate_inbox_csv(path: str | Path) -> None:
+    """Validate an inbox CSV when one is present.
+
+    Parameters
+    ----------
+    path
+        Path to the inbox CSV.
+
+    Returns
+    -------
+    None
+    """
+    inbox_path = Path(path)
+    if not inbox_path.exists():
+        return
+
+    validate_csv_file(inbox_path, name="inbox_csv")
+    validate_csv_has_required_columns(
+        inbox_path,
+        required=INBOX_REQUIRED_COLS,
+        name="inbox_csv",
+        sep=CSV_SEP,
+    )
+    load_inbox(inbox_path)
 
 
 def discover(

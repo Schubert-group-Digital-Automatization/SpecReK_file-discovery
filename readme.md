@@ -8,7 +8,9 @@ The package is intentionally conservative. Legacy filenames (for example `TC003_
 
 After review, the curated registry can be used to compute a target layout (`new Path`), verify source and target locations on disk, and copy files into a restructured directory where filenames are based on the stable `ID` rather than legacy naming variations.
 
-Public functions: `discover`, `create_new_path`, `verify`, `restructure`.
+Public workflow functions: `discover`, `create_new_path`, `verify`, `restructure`.
+
+Public CSV helpers: `read_curated_csv`, `read_inbox_csv`, `write_curated_csv`, `write_inbox_csv`, `validate_curated_csv`, `validate_inbox_csv`.
 
 ## 2. Installation
 
@@ -100,6 +102,21 @@ report, stats = restructure(
     save_report="./restructure_report.csv",
 )
 ```
+
+### 4.5. Notebook and manual CSV editing
+
+For Jupyter or manual pandas work, use the public CSV helpers instead of plain `pandas.read_csv` and `DataFrame.to_csv`. The helpers preserve the package CSV rules: semicolon separation, UTF-8 BOM output, stripped headers, stable schema columns, key-field normalization, and date validation.
+
+```python
+from file_discovery import read_inbox_csv, validate_inbox_csv, write_inbox_csv
+
+inbox = read_inbox_csv("./new_files.csv")
+# edit inbox in pandas/Jupyter
+write_inbox_csv(inbox, "./new_files.csv")
+validate_inbox_csv("./new_files.csv")
+```
+
+The same pattern is available for the curated registry via `read_curated_csv`, `write_curated_csv`, and `validate_curated_csv`.
 
 ## 5. Reference
 
