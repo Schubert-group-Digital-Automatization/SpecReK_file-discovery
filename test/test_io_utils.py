@@ -49,8 +49,8 @@ def test_write_csv_uses_utf8_sig_and_semicolon(tmp_path: Path) -> None:
     assert text.splitlines()[0] == "ID;Path"
 
 
-def test_load_curated_maps_legacy_projekt_to_project(tmp_path: Path) -> None:
-    """Legacy Projekt should populate canonical Project and not remain as output."""
+def test_load_curated_keeps_legacy_projekt_without_mapping(tmp_path: Path) -> None:
+    """Legacy Projekt should remain separate and not populate canonical Project."""
     path = tmp_path / "legacy.csv"
     df = pd.DataFrame(
         {
@@ -64,13 +64,13 @@ def test_load_curated_maps_legacy_projekt_to_project(tmp_path: Path) -> None:
 
     out, added = load_curated(path)
 
-    assert out.loc[0, "Project"] == "LegacyProject"
-    assert "Projekt" not in out.columns
-    assert "Project" not in added
+    assert pd.isna(out.loc[0, "Project"])
+    assert out.loc[0, "Projekt"] == "LegacyProject"
+    assert "Project" in added
 
 
-def test_load_curated_keeps_nonempty_project_over_legacy_projekt(tmp_path: Path) -> None:
-    """Canonical Project values should not be overwritten by legacy Projekt."""
+def test_load_curated_keeps_canonical_project_and_legacy_projekt(tmp_path: Path) -> None:
+    """Canonical Project should remain separate from legacy Projekt."""
     path = tmp_path / "legacy_and_canonical.csv"
     df = pd.DataFrame(
         {
@@ -86,7 +86,7 @@ def test_load_curated_keeps_nonempty_project_over_legacy_projekt(tmp_path: Path)
     out, added = load_curated(path)
 
     assert out.loc[0, "Project"] == "CanonicalProject"
-    assert "Projekt" not in out.columns
+    assert out.loc[0, "Projekt"] == "LegacyProject"
     assert "Project" not in added
 
 

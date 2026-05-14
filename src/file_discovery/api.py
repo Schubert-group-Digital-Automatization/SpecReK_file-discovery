@@ -23,7 +23,7 @@ from .detection_utils import (
     scan_base_dir,
     scan_base_dir_minimal,
 )
-from .io_utils import ensure_columns, load_curated, load_inbox, write_csv
+from .io_utils import ensure_columns, is_blank_series, load_curated, load_inbox, write_csv
 from .purging_utils import prune_inbox_by_path, prune_inbox_with_conflicts
 from .restructure import restructure as _restructure
 from .verify_paths import verify as _verify
@@ -97,14 +97,11 @@ def discover(
     case2 = build_case2_rows(discovered, curated)
     case1 = build_case1_rows(discovered, curated)
 
-    case2_paths_series = case2["Path"].astype("string").str.strip()
-    case2_paths_series = case2_paths_series[
-        case2_paths_series.notna() & case2_paths_series.ne("")
-    ]
-    case2_paths = set(case2_paths_series)
+    case2_path_col = case2["Path"].astype("string").str.strip()
+    case2_paths = set(case2_path_col[~is_blank_series(case2_path_col)])
     if case2_paths:
-        case1_paths = case1["Path"].astype("string").str.strip()
-        case1 = case1.loc[~case1_paths.isin(case2_paths)].copy()
+        case1_path_col = case1["Path"].astype("string").str.strip()
+        case1 = case1.loc[~case1_path_col.isin(case2_paths)].copy()
 
     before = len(inbox)
     inbox = append_unique_by_path(inbox, case2)

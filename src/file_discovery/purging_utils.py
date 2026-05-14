@@ -188,7 +188,10 @@ def prune_inbox_with_conflicts(inbox: pd.DataFrame, curated: pd.DataFrame) -> pd
             conflict_bits[col] = col
             conflict_bits.loc[~mask.fillna(False), col] = ""
 
-        conflict_str = conflict_bits.agg("|".join, axis=1).str.strip("|")
+        conflict_str = conflict_bits.apply(
+            lambda row: "|".join(value for value in row if value),
+            axis=1,
+        )
         conflict_str = conflict_str.replace("", pd.NA)
 
         joined.loc[conflict_rows, "conflicts_new"] = conflict_str.loc[conflict_rows]

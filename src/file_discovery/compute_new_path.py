@@ -80,6 +80,10 @@ def create_new_path(
     Rows are skipped when required inputs are missing: `ID`, `Path` suffix, or
     `Date`. No attempt is made to infer missing values.
 
+    As a side effect, ``Date`` values in the returned dataframe are normalized
+    to ``dd.mm.yyyy`` for selected rows parsed successfully. The source CSV is
+    only modified when ``save_output`` is provided.
+
     Raises
     ------
     ValueError
