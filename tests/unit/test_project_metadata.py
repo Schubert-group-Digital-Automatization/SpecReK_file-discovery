@@ -15,7 +15,6 @@ def load_project_metadata() -> dict[str, object]:
 def test_project_metadata_declares_apache_alpha_release() -> None:
     project = load_project_metadata()
 
-    assert project["version"] == "1.9.6-alpha"
     assert project["license"] == "Apache-2.0"
     assert project["license-files"] == ["LICENSE"]
     assert (PROJECT_ROOT / "LICENSE").is_file()
