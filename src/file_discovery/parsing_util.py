@@ -13,14 +13,14 @@ from pathlib import Path
 import pandas as pd
 
 from .config import (
-    ALLOWED_EXTENSIONS,
     ALLOW_NUMERIC_EXTENSIONS,
+    ALLOWED_EXTENSIONS,
     CALIBRATION_MATERIAL,
     COMMENT_EXCLUSION_TOKENS,
     DATE_FORMATS,
     DATE_TOKEN_REGEXES,
-    DEFAULT_TECHNIQUE,
     DEFAULT_NM,
+    DEFAULT_TECHNIQUE,
     KNOWN_PREFIXES,
     LIQUID_POSITION_TOKEN,
     OPERATOR_COMPOUND,
@@ -28,7 +28,6 @@ from .config import (
     OPERATOR_SIMPLE,
     TECHNIQUE_PL_TOKEN,
 )
-
 
 _KNOWN_PREFIXES: tuple[str, ...] = tuple(KNOWN_PREFIXES)
 RE_DATE_TOKENS = tuple(re.compile(pattern) for pattern in DATE_TOKEN_REGEXES)
@@ -53,11 +52,7 @@ def is_allowed_file(path: Path) -> bool:
     suffix = path.suffix.lower()
     if suffix in ALLOWED_EXTENSIONS:
         return True
-    return bool(
-        ALLOW_NUMERIC_EXTENSIONS
-        and suffix.startswith(".")
-        and suffix[1:].isdigit()
-    )
+    return bool(ALLOW_NUMERIC_EXTENSIONS and suffix.startswith(".") and suffix[1:].isdigit())
 
 
 def tokenize(current_filename: str) -> list[str]:
@@ -128,9 +123,7 @@ def parse_operator(tokens: list[str]) -> str | None:
         ``"MKY-LF"`` if tokens contain ``MKY-LF`` or ``MKY`` and ``LF``.
         ``"MKY"`` if tokens contain ``MKY``. Otherwise None.
     """
-    if OPERATOR_COMPOUND in tokens or (
-        OPERATOR_SIMPLE in tokens and OPERATOR_MODIFIER in tokens
-    ):
+    if OPERATOR_COMPOUND in tokens or (OPERATOR_SIMPLE in tokens and OPERATOR_MODIFIER in tokens):
         return OPERATOR_COMPOUND
     if OPERATOR_SIMPLE in tokens:
         return OPERATOR_SIMPLE
@@ -333,11 +326,7 @@ def build_comments(tokens: list[str], used_tokens: set[str]) -> str | None:
     str or None
         Remaining tokens joined by underscores, or None if nothing remains.
     """
-    remaining = [
-        t
-        for t in tokens
-        if t not in COMMENT_EXCLUSION_TOKENS and t not in used_tokens
-    ]
+    remaining = [t for t in tokens if t not in COMMENT_EXCLUSION_TOKENS and t not in used_tokens]
     comment = "_".join(remaining)
     return comment if comment else None
 

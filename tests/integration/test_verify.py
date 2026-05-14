@@ -1,3 +1,5 @@
+"""Integration tests for verify workflows."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -6,9 +8,9 @@ from typing import Any
 
 import pandas as pd
 import pytest
+from tests.helpers import read_semicolon_csv, touch_file
 
 from file_discovery import verify
-from tests.helpers import read_semicolon_csv, touch_file
 
 pytestmark = pytest.mark.integration
 
@@ -18,6 +20,7 @@ def test_verify_returns_empty_report_for_empty_curated_registry(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify verify returns empty report for empty curated registry."""
     write_curated([], curated_csv)
 
     report, stats = verify(
@@ -116,6 +119,7 @@ def test_verify_reports_status_and_existence_flags_for_core_scenarios(
     expected_source_exists: bool,
     expected_target_exists: bool,
 ) -> None:
+    """Verify verify reports status and existence flags for core scenarios."""
     registry_row = {"ID": "SPR_AP1_00001", **row}
     write_curated([registry_row], curated_csv)
     if isinstance(row["Path"], str) and create_source_file:
@@ -138,6 +142,7 @@ def test_verify_prioritizes_missing_source_path_over_missing_target_file(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify verify prioritizes missing source path over missing target file."""
     write_curated(
         [{"ID": "SPR_AP1_00002", "Path": pd.NA, "new Path": "2025/CW01/file.spc"}],
         curated_csv,
@@ -155,6 +160,7 @@ def test_verify_creates_target_parent_dirs_without_creating_target_file(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify verify creates target parent dirs without creating target file."""
     write_curated(
         [
             {
@@ -186,6 +192,7 @@ def test_verify_save_output_writes_report_csv(
     tmp_path: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify verify save output writes report CSV."""
     write_curated(
         [{"ID": "SPR_AP1_00004", "Path": "a/b/missing.spc", "new Path": "2025/CW01/file.spc"}],
         curated_csv,
@@ -218,6 +225,7 @@ def test_verify_rejects_unsafe_registry_paths(
     path_value: str,
     expected: str,
 ) -> None:
+    """Verify verify rejects unsafe registry paths."""
     row = {"ID": "SPR_AP1_00005", "Path": "a/source.spc", "new Path": "2025/CW01/file.spc"}
     row[path_col] = path_value
     write_curated([row], curated_csv)
@@ -243,6 +251,7 @@ def test_verify_rejects_symlink_escapes(
     column: str,
     registry_path: str,
 ) -> None:
+    """Verify verify rejects symlink escapes."""
     outside = tmp_path / f"outside_{root_key}"
     outside.mkdir()
     link = roots[root_key] / link_name

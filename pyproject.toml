@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "file_discovery"
-version = "1.9.8-alpha"
+version = "1.9.9-alpha"
 description = "Discovery and inbox workflow for SpecReK measurement files."
 readme = "readme.md"
 requires-python = ">=3.11"
@@ -36,6 +36,12 @@ Issues = "https://github.com/Schubert-group-Digital-Automatization/SpecReK_file-
 [project.optional-dependencies]
 test = [
   "pytest>=8",
+  "pytest-cov>=7",
+]
+lint = [
+  "ruff>=0.15",
+  "pylint>=4",
+  "pylint-pytest>=1",
 ]
 
 [tool.setuptools]
@@ -62,3 +68,34 @@ filterwarnings = ["error"]
 markers = [
   "integration: tests that exercise public API workflows and filesystem effects",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.pylint.main]
+load-plugins = ["pylint_pytest"]
+py-version = "3.11"
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.design]
+max-args = 7
+max-positional-arguments = 7
+max-attributes = 8
+max-locals = 40
+max-statements = 60
+
+[tool.pylint.similarities]
+min-similarity-lines = 12

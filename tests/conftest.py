@@ -1,3 +1,5 @@
+"""Shared pytest fixtures for file discovery tests."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -12,16 +14,19 @@ from tests.helpers import registry_frame, write_registry_csv
 
 @pytest.fixture()
 def curated_df() -> pd.DataFrame:
+    """Return the curated df fixture."""
     return registry_frame()
 
 
 @pytest.fixture()
 def curated_csv(tmp_path: Path) -> Path:
+    """Return the curated CSV fixture."""
     return tmp_path / "measured_files.csv"
 
 
 @pytest.fixture()
 def roots(tmp_path: Path) -> dict[str, Path]:
+    """Return the roots fixture."""
     source_root = tmp_path / "source"
     target_root = tmp_path / "target"
     source_root.mkdir()
@@ -31,10 +36,13 @@ def roots(tmp_path: Path) -> dict[str, Path]:
 
 @pytest.fixture()
 def write_curated() -> Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame]:
+    """Write curated."""
+
     def _write(
         rows: Sequence[Mapping[str, Any]] | pd.DataFrame,
         path: Path,
     ) -> pd.DataFrame:
+        """Return write."""
         return write_registry_csv(path, rows)
 
     return _write

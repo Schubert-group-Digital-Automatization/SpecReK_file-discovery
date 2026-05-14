@@ -17,7 +17,6 @@ from .config import ALL_INBOX_COLS, ID_REGEX, REGISTRY_COLS
 from .io_utils import ensure_columns, is_blank_series, normalize_strings
 from .parsing_util import is_allowed_file, parse_file_row
 
-
 ID_RE = re.compile(ID_REGEX)
 
 

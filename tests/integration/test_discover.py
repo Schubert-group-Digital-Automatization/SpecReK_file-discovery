@@ -1,3 +1,5 @@
+"""Integration tests for discover workflows."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -6,17 +8,18 @@ from typing import Any
 
 import pandas as pd
 import pytest
+from tests.helpers import assert_columns, inbox_frame, touch_file, write_registry_csv
 
 from file_discovery import discover
 from file_discovery.config import ALL_INBOX_COLS
 from file_discovery.io_utils import load_inbox
-from tests.helpers import assert_columns, inbox_frame, touch_file, write_registry_csv
 
 pytestmark = pytest.mark.integration
 
 
 @pytest.fixture()
 def inbox_csv(tmp_path: Path) -> Path:
+    """Return the inbox CSV fixture."""
     return tmp_path / "new_files.csv"
 
 
@@ -26,6 +29,7 @@ def test_discover_creates_empty_inbox_with_expected_columns_when_no_files_exist(
     inbox_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify discover creates empty inbox with expected columns when no files exist."""
     write_curated([], curated_csv)
 
     inbox, stats = discover(
@@ -54,6 +58,7 @@ def test_discover_appends_unique_paths_across_reruns(
     inbox_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify discover appends unique paths across reruns."""
     write_curated([], curated_csv)
     discovered = Path("some_subdir") / "TC005_MKY_P1S1_16-07-25_785nm.spc"
     touch_file(roots["source_root"] / discovered)
@@ -86,6 +91,7 @@ def test_discover_decodes_legacy_unregistered_file_when_requested(
     inbox_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify discover decodes legacy unregistered file when requested."""
     write_curated([], curated_csv)
     rel = Path("legacy") / "TC005_MKY_P1S1_01-06-2024_785nm.spc"
     touch_file(roots["source_root"] / rel)
@@ -116,6 +122,7 @@ def test_discover_uses_case2_for_id_named_file_and_does_not_duplicate_as_case1(
     inbox_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify discover uses case2 for ID named file and does not duplicate as case1."""
     write_curated(
         [
             {
@@ -153,6 +160,7 @@ def test_discover_does_not_add_registered_files(
     inbox_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify discover does not add registered files."""
     rel = Path("registered") / "SPR_AP1_00002.spc"
     touch_file(roots["source_root"] / rel)
     write_curated(
@@ -184,6 +192,7 @@ def test_discover_purges_existing_inbox_by_path_when_conflicts_are_disabled(
     inbox_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify discover purges existing inbox by path when conflicts are disabled."""
     rel = Path("registered") / "SPR_AP1_00003.spc"
     write_curated(
         [{"ID": "SPR_AP1_00003", "Path": rel.as_posix(), "Current Filename": "SPR_AP1_00003"}],
@@ -220,6 +229,7 @@ def test_discover_keeps_conflicting_inbox_rows_and_reports_exact_conflicts(
     inbox_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify discover keeps conflicting inbox rows and reports exact conflicts."""
     rel = Path("registered") / "SPR_AP1_00004.spc"
     write_curated(
         [

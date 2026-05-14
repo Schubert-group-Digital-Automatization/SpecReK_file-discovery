@@ -159,15 +159,9 @@ def normalize_date_column(df: pd.DataFrame, column: str = "Date") -> None:
     if invalid.any():
         bad_values = values.loc[invalid].drop_duplicates().head(20).tolist()
 
-        raise ValueError(
-            f"Could not parse some values in column {column!r}: {bad_values}"
-        )
+        raise ValueError(f"Could not parse some values in column {column!r}: {bad_values}")
 
-    df.loc[~missing, column] = (
-        parsed.loc[~missing]
-        .dt.strftime("%d.%m.%Y")
-        .astype("string")
-    )
+    df.loc[~missing, column] = parsed.loc[~missing].dt.strftime("%d.%m.%Y").astype("string")
 
 
 def _validate_no_null_bytes(path: Path) -> None:

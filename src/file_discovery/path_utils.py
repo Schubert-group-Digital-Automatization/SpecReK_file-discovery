@@ -60,8 +60,7 @@ def resolve_under_root(root: Path, relative_path: str, *, column: str) -> Path:
 
     if not resolved.is_relative_to(root_resolved):
         raise ValueError(
-            f"Resolved {column} escapes its root, possibly through a symlink: "
-            f"{resolved}"
+            f"Resolved {column} escapes its root, possibly through a symlink: {resolved}"
         )
 
     return resolved

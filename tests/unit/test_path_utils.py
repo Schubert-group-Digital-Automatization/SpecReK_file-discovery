@@ -1,3 +1,5 @@
+"""Unit tests for path utils behavior."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,6 +18,7 @@ from file_discovery.path_utils import resolve_under_root, validate_relative_posi
     ],
 )
 def test_validate_relative_posix_path_accepts_safe_relative_paths(path_value: str) -> None:
+    """Verify validate relative POSIX path accepts safe relative paths."""
     validate_relative_posix_path(path_value, column="Path")
 
 
@@ -32,11 +35,13 @@ def test_validate_relative_posix_path_rejects_unsafe_values(
     path_value: str,
     expected: str,
 ) -> None:
+    """Verify validate relative POSIX path rejects unsafe values."""
     with pytest.raises(ValueError, match=expected):
         validate_relative_posix_path(path_value, column="Path")
 
 
 def test_resolve_under_root_returns_resolved_path_for_safe_relative_path(tmp_path: Path) -> None:
+    """Verify resolve under root returns resolved path for safe relative path."""
     root = tmp_path / "root"
     root.mkdir()
 
@@ -46,6 +51,7 @@ def test_resolve_under_root_returns_resolved_path_for_safe_relative_path(tmp_pat
 
 
 def test_resolve_under_root_rejects_symlink_escape(tmp_path: Path) -> None:
+    """Verify resolve under root rejects symlink escape."""
     root = tmp_path / "root"
     outside = tmp_path / "outside"
     root.mkdir()

@@ -1,3 +1,5 @@
+"""Integration tests for restructure workflows."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -6,9 +8,9 @@ from typing import Any
 
 import pandas as pd
 import pytest
+from tests.helpers import read_semicolon_csv, touch_file
 
 from file_discovery import restructure
-from tests.helpers import read_semicolon_csv, touch_file
 
 pytestmark = pytest.mark.integration
 
@@ -18,6 +20,7 @@ def test_restructure_copies_file_to_destination_and_reports_stats(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify restructure copies file to destination and reports stats."""
     write_curated(
         [{"ID": "SPR_AP1_00001", "Path": "a/b/source.spc", "new Path": "2025/CW01/file.spc"}],
         curated_csv,
@@ -53,6 +56,7 @@ def test_restructure_is_idempotent_when_overwrite_false(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify restructure is idempotent when overwrite false."""
     write_curated(
         [{"ID": "SPR_AP1_00002", "Path": "x/y/src.jdx", "new Path": "2025/CW02/file.jdx"}],
         curated_csv,
@@ -62,7 +66,9 @@ def test_restructure_is_idempotent_when_overwrite_false(
 
     first_report, first_stats = restructure(curated_csv, roots["source_root"], roots["target_root"])
     source.write_bytes(b"v2")
-    second_report, second_stats = restructure(curated_csv, roots["source_root"], roots["target_root"])
+    second_report, second_stats = restructure(
+        curated_csv, roots["source_root"], roots["target_root"]
+    )
 
     assert first_report.loc[0, "action"] == "copied"
     assert first_stats["copied"] == 1
@@ -76,6 +82,7 @@ def test_restructure_overwrite_true_replaces_existing_target(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify restructure overwrite true replaces existing target."""
     write_curated(
         [{"ID": "SPR_AP1_00003", "Path": "a/b/src.spc", "new Path": "2025/CW03/file.spc"}],
         curated_csv,
@@ -126,6 +133,7 @@ def test_restructure_reports_missing_inputs_without_copying(
     expected_action: str,
     counter: str,
 ) -> None:
+    """Verify restructure reports missing inputs without copying."""
     write_curated([row], curated_csv)
 
     report, stats = restructure(curated_csv, roots["source_root"], roots["target_root"])
@@ -142,6 +150,7 @@ def test_restructure_create_target_dirs_controls_parent_directory_creation(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify restructure create target dirs controls parent directory creation."""
     write_curated(
         [{"ID": "SPR_AP1_00007", "Path": "p/q/r.spc", "new Path": "2025/CW05/subdir/file.spc"}],
         curated_csv,
@@ -167,6 +176,7 @@ def test_restructure_save_report_writes_report_csv(
     tmp_path: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify restructure save report writes report CSV."""
     write_curated(
         [{"ID": "SPR_AP1_00008", "Path": "a/b/src.spc", "new Path": "2025/CW06/file.spc"}],
         curated_csv,
@@ -174,7 +184,9 @@ def test_restructure_save_report_writes_report_csv(
     touch_file(roots["source_root"] / "a/b/src.spc", b"X")
     output = tmp_path / "restructure_report.csv"
 
-    report, _ = restructure(curated_csv, roots["source_root"], roots["target_root"], save_report=output)
+    report, _ = restructure(
+        curated_csv, roots["source_root"], roots["target_root"], save_report=output
+    )
     on_disk = read_semicolon_csv(output)
 
     assert on_disk.loc[0, "ID"] == report.loc[0, "ID"]
@@ -186,6 +198,7 @@ def test_restructure_rejects_duplicate_selected_new_paths_before_copying(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify restructure rejects duplicate selected new paths before copying."""
     write_curated(
         [
             {"ID": "SPR_AP1_00009", "Path": "a/source1.spc", "new Path": "2025/CW01/duplicate.spc"},
@@ -203,6 +216,7 @@ def test_restructure_treats_directory_source_as_missing_source(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify restructure treats directory source as missing source."""
     write_curated(
         [{"ID": "SPR_AP1_00011", "Path": "a/source_dir", "new Path": "2025/CW01/file.spc"}],
         curated_csv,
@@ -235,6 +249,7 @@ def test_restructure_rejects_unsafe_registry_paths(
     path_value: str,
     expected: str,
 ) -> None:
+    """Verify restructure rejects unsafe registry paths."""
     row = {"ID": "SPR_AP1_00012", "Path": "a/source.spc", "new Path": "2025/CW01/file.spc"}
     row[path_col] = path_value
     write_curated([row], curated_csv)
@@ -260,6 +275,7 @@ def test_restructure_rejects_symlink_escapes(
     column: str,
     registry_path: str,
 ) -> None:
+    """Verify restructure rejects symlink escapes."""
     outside = tmp_path / f"outside_{root_key}"
     outside.mkdir()
     link = roots[root_key] / link_name

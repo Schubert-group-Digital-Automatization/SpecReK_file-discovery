@@ -14,7 +14,6 @@ import pandas as pd
 from .config import INBOX_EXTRA_COLS, PRUNE_EXCLUDE_COLS, REGISTRY_COLS
 from .io_utils import normalize_strings
 
-
 CANONICAL_COMPARE_COLS = [col for col in REGISTRY_COLS if col not in PRUNE_EXCLUDE_COLS]
 
 
@@ -23,8 +22,10 @@ def series_equal_na(left: pd.Series, right: pd.Series) -> pd.Series:
 
     Parameters
     ----------
-    left, right
-        Series to compare.
+    left
+        Left Series to compare.
+    right
+        Right Series to compare.
 
     Returns
     -------
@@ -211,9 +212,7 @@ def prune_inbox_with_conflicts(inbox: pd.DataFrame, curated: pd.DataFrame) -> pd
                 dtype="string",
             )
 
-        inbox_out["conflicts"] = (
-            inbox_out["Path"].map(conflict_map).fillna(existing_conflicts)
-        )
+        inbox_out["conflicts"] = inbox_out["Path"].map(conflict_map).fillna(existing_conflicts)
 
     prunable_paths_series = joined.loc[prune_mask, "Path"].astype("string").str.strip()
     prunable_paths_series = prunable_paths_series[

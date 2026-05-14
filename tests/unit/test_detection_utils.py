@@ -1,9 +1,12 @@
+"""Unit tests for detection utils behavior."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from tests.helpers import assert_columns, inbox_frame, registry_frame, touch_file
 
 from file_discovery.config import ALL_INBOX_COLS, REGISTRY_COLS
 from file_discovery.detection_utils import (
@@ -13,10 +16,10 @@ from file_discovery.detection_utils import (
     scan_base_dir,
     scan_base_dir_minimal,
 )
-from tests.helpers import assert_columns, inbox_frame, registry_frame, touch_file
 
 
 def test_scan_base_dir_returns_allowed_files_in_deterministic_path_order(tmp_path: Path) -> None:
+    """Verify scan base dir returns allowed files in deterministic path order."""
     touch_file(tmp_path / "z" / "TC005_MKY_01-06-2024_785nm.spc")
     touch_file(tmp_path / "a" / "TC006_MKY_01-06-2024_532nm.jdx")
     touch_file(tmp_path / "ignored" / "notes.txt")
@@ -32,6 +35,7 @@ def test_scan_base_dir_returns_allowed_files_in_deterministic_path_order(tmp_pat
 
 
 def test_scan_base_dir_minimal_only_populates_path_and_current_filename(tmp_path: Path) -> None:
+    """Verify scan base dir minimal only populates path and current filename."""
     touch_file(tmp_path / "nested" / "TC005_MKY_01-06-2024_785nm.spc")
 
     result = scan_base_dir_minimal(tmp_path)
@@ -44,6 +48,7 @@ def test_scan_base_dir_minimal_only_populates_path_and_current_filename(tmp_path
 
 
 def test_build_case2_rows_maps_id_named_files_to_incomplete_curated_rows() -> None:
+    """Verify build case2 rows maps ID named files to incomplete curated rows."""
     discovered = registry_frame(
         [
             {
@@ -90,6 +95,7 @@ def test_build_case2_rows_maps_id_named_files_to_incomplete_curated_rows() -> No
 
 
 def test_build_case2_rows_returns_empty_for_complete_curated_match() -> None:
+    """Verify build case2 rows returns empty for complete curated match."""
     discovered = registry_frame(
         [{"Path": "id_files/SPR_AP1_00001.spc", "Current Filename": "SPR_AP1_00001"}]
     )
@@ -110,6 +116,7 @@ def test_build_case2_rows_returns_empty_for_complete_curated_match() -> None:
 
 
 def test_build_case2_rows_rejects_duplicate_curated_ids() -> None:
+    """Verify build case2 rows rejects duplicate curated IDs."""
     discovered = registry_frame(
         [{"Path": "id_files/SPR_AP1_00001.spc", "Current Filename": "SPR_AP1_00001"}]
     )
@@ -125,6 +132,7 @@ def test_build_case2_rows_rejects_duplicate_curated_ids() -> None:
 
 
 def test_build_case1_rows_returns_unregistered_paths_and_blanks_workflow_fields() -> None:
+    """Verify build case1 rows returns unregistered paths and blanks workflow fields."""
     discovered = registry_frame(
         [
             {
@@ -152,6 +160,7 @@ def test_build_case1_rows_returns_unregistered_paths_and_blanks_workflow_fields(
 
 
 def test_append_unique_by_path_appends_only_nonblank_paths_not_already_present() -> None:
+    """Verify append unique by path appends only nonblank paths not already present."""
     inbox = inbox_frame(
         [
             {"Path": "existing/file.spc", "Current Filename": "file"},

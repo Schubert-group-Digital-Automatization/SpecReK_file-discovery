@@ -1,3 +1,5 @@
+"""Integration tests for create new path workflows."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -6,9 +8,9 @@ from typing import Any
 
 import pandas as pd
 import pytest
+from tests.helpers import read_semicolon_csv
 
 from file_discovery import create_new_path
-from tests.helpers import read_semicolon_csv
 
 pytestmark = pytest.mark.integration
 
@@ -17,6 +19,7 @@ def test_create_new_path_populates_exact_path_and_stats(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path populates exact path and stats."""
     write_curated(
         [
             {
@@ -49,6 +52,7 @@ def test_create_new_path_normalizes_iso_date_in_returned_frame_without_saving_so
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path normalizes iso date in returned frame without saving source."""
     write_curated(
         [
             {
@@ -75,6 +79,7 @@ def test_create_new_path_does_not_overwrite_existing_value_by_default(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path does not overwrite existing value by default."""
     write_curated(
         [
             {
@@ -97,6 +102,7 @@ def test_create_new_path_overwrite_true_replaces_existing_value(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path overwrite true replaces existing value."""
     write_curated(
         [
             {
@@ -132,6 +138,7 @@ def test_create_new_path_skips_rows_with_missing_or_invalid_prerequisites(
     broken_value: Any,
     counter: str,
 ) -> None:
+    """Verify create new path skips rows with missing or invalid prerequisites."""
     row = {
         "ID": "SPR_AP1_00005",
         "Path": "a/b/c.spc",
@@ -152,6 +159,7 @@ def test_create_new_path_query_limits_processing_and_date_validation(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path query limits processing and date validation."""
     write_curated(
         [
             {
@@ -187,6 +195,7 @@ def test_create_new_path_rejects_malformed_selected_dates(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path rejects malformed selected dates."""
     write_curated(
         [
             {
@@ -208,6 +217,7 @@ def test_create_new_path_save_output_writes_normalized_result(
     tmp_path: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path save output writes normalized result."""
     write_curated(
         [
             {
@@ -234,6 +244,7 @@ def test_create_new_path_rejects_duplicate_candidate_output(
     curated_csv: Path,
     write_curated: Callable[[Sequence[Mapping[str, Any]] | pd.DataFrame, Path], pd.DataFrame],
 ) -> None:
+    """Verify create new path rejects duplicate candidate output."""
     write_curated(
         [
             {

@@ -10,9 +10,9 @@ The filename is assumed to already be `<ID><suffix>` as part of `new Path`.
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
-import shutil
 
 import pandas as pd
 

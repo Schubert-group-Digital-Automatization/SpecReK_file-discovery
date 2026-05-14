@@ -91,7 +91,6 @@ def create_new_path(
         ``dd.mm.yyyy`` or ``yyyy-mm-dd``. Rows outside the query are not
         validated.
     """
-
     df, _added = load_curated(curated_csv, normalize_dates=False)
     df = ensure_columns(df, REGISTRY_COLS)
     normalize_strings(df, ("ID", "Path", "Date", "new Path"))
@@ -135,19 +134,15 @@ def create_new_path(
     invalid_date = parsed_selected.isna()
     if invalid_date.any():
         bad_values = (
-            date_series.loc[~missing_date]
-            .loc[invalid_date]
-            .drop_duplicates()
-            .head(20)
-            .tolist()
+            date_series.loc[~missing_date].loc[invalid_date].drop_duplicates().head(20).tolist()
         )
         raise ValueError(f"Could not parse selected Date values: {bad_values}")
 
     dt = pd.Series(pd.NaT, index=selected_idx, dtype="datetime64[ns]")
     dt.loc[~missing_date] = parsed_selected
-    df.loc[date_series.loc[~missing_date].index, "Date"] = (
-        parsed_selected.dt.strftime("%d.%m.%Y").astype("string")
-    )
+    df.loc[date_series.loc[~missing_date].index, "Date"] = parsed_selected.dt.strftime(
+        "%d.%m.%Y"
+    ).astype("string")
 
     iso = dt.dt.isocalendar()
     year = iso["year"].astype("Int64")
@@ -164,9 +159,7 @@ def create_new_path(
 
     is_currently_empty = is_blank_series(new_path_series)
     should_write = (
-        is_currently_empty
-        if not overwrite
-        else pd.Series(True, index=selected_idx, dtype=bool)
+        is_currently_empty if not overwrite else pd.Series(True, index=selected_idx, dtype=bool)
     )
 
     eligible = ~(missing_id | invalid_id | missing_path | missing_suffix | missing_date)
@@ -175,12 +168,8 @@ def create_new_path(
     update_idx = to_update[to_update].index
     candidate_new_path = df["new Path"].astype("string").str.strip()
     candidate_new_path.loc[update_idx] = computed.loc[update_idx].astype("string")
-    nonempty_new_path = candidate_new_path[
-        candidate_new_path.notna() & candidate_new_path.ne("")
-    ]
-    duplicate_new_paths = nonempty_new_path[
-        nonempty_new_path.duplicated(keep=False)
-    ]
+    nonempty_new_path = candidate_new_path[candidate_new_path.notna() & candidate_new_path.ne("")]
+    duplicate_new_paths = nonempty_new_path[nonempty_new_path.duplicated(keep=False)]
 
     if not duplicate_new_paths.empty:
         examples = duplicate_new_paths.drop_duplicates().head(20).tolist()

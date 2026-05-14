@@ -1,3 +1,5 @@
+"""Shared test helpers for file discovery tests."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -16,6 +18,7 @@ def registry_frame(
     *,
     columns: Sequence[str] = REGISTRY_COLS,
 ) -> pd.DataFrame:
+    """Return registry frame."""
     frame = pd.DataFrame(list(rows or []))
     for col in columns:
         if col not in frame.columns:
@@ -26,30 +29,38 @@ def registry_frame(
 
 
 def inbox_frame(rows: Sequence[Mapping[str, Any]] | None = None) -> pd.DataFrame:
+    """Return inbox frame."""
     return registry_frame(rows, columns=ALL_INBOX_COLS)
 
 
-def write_registry_csv(path: Path, rows: Sequence[Mapping[str, Any]] | pd.DataFrame) -> pd.DataFrame:
+def write_registry_csv(
+    path: Path, rows: Sequence[Mapping[str, Any]] | pd.DataFrame
+) -> pd.DataFrame:
+    """Write registry CSV."""
     frame = rows.copy() if isinstance(rows, pd.DataFrame) else registry_frame(rows)
     write_csv(frame, path)
     return frame
 
 
 def read_semicolon_csv(path: Path) -> pd.DataFrame:
+    """Read semicolon CSV."""
     return pd.read_csv(path, sep=CSV_SEP, dtype="string", encoding="utf-8-sig")
 
 
 def touch_file(path: Path, content: bytes = b"x") -> Path:
+    """Create file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     return path
 
 
 def assert_columns(frame: pd.DataFrame, expected: Sequence[str]) -> None:
+    """Assert columns."""
     assert list(frame.columns) == list(expected)
 
 
 def assert_frame_matches(actual: pd.DataFrame, expected: pd.DataFrame) -> None:
+    """Assert frame matches."""
     assert_frame_equal(
         actual.reset_index(drop=True),
         expected.reset_index(drop=True),

@@ -1,3 +1,5 @@
+"""Unit tests for parsing util behavior."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,8 +8,8 @@ import pandas as pd
 import pytest
 
 from file_discovery.config import (
-    ALLOWED_EXTENSIONS,
     ALLOW_NUMERIC_EXTENSIONS,
+    ALLOWED_EXTENSIONS,
     COMMENT_EXCLUSION_TOKENS,
     DATE_FORMATS,
     DEFAULT_NM,
@@ -32,12 +34,14 @@ from file_discovery.parsing_util import (
 
 
 def test_is_allowed_file_accepts_configured_extensions() -> None:
+    """Verify is allowed file accepts configured extensions."""
     extension = sorted(ALLOWED_EXTENSIONS)[0]
 
     assert is_allowed_file(Path(f"dummy{extension}")) is True
 
 
 def test_is_allowed_file_numeric_extensions_follow_config_flag() -> None:
+    """Verify is allowed file numeric extensions follow config flag."""
     assert is_allowed_file(Path("dummy.123")) is bool(ALLOW_NUMERIC_EXTENSIONS)
 
 
@@ -53,20 +57,24 @@ def test_tokenize_splits_strips_and_drops_empty_tokens(
     filename: str,
     expected: list[str],
 ) -> None:
+    """Verify tokenize splits strips and drops empty tokens."""
     assert tokenize(filename) == expected
 
 
 def test_tokenize_returns_empty_list_for_non_string_input() -> None:
+    """Verify tokenize returns empty list for non string input."""
     assert tokenize(None) == []  # type: ignore[arg-type]
 
 
 def test_parse_measured_material_prefers_first_known_prefix_token() -> None:
+    """Verify parse measured material prefers first known prefix token."""
     prefix = KNOWN_PREFIXES[0]
 
     assert parse_measured_material(["XXX", f"{prefix}123", "ZZZ"]) == f"{prefix}123"
 
 
 def test_parse_measured_material_falls_back_to_first_token() -> None:
+    """Verify parse measured material falls back to first token."""
     assert parse_measured_material(["AAA", "BBB"]) == "AAA"
     assert parse_measured_material([]) is None
 
@@ -83,6 +91,7 @@ def test_parse_sample_type_is_calibration_only_for_fsu026(
     measured_material: str | None,
     expected: str,
 ) -> None:
+    """Verify parse sample type is calibration only for FSU026."""
     assert parse_sample_type(measured_material) == expected
 
 
@@ -99,10 +108,12 @@ def test_parse_operator_handles_compound_simple_and_missing_tokens(
     tokens: list[str],
     expected: str | None,
 ) -> None:
+    """Verify parse operator handles compound simple and missing tokens."""
     assert parse_operator(tokens) == expected
 
 
 def test_parse_technique_uses_pl_token_or_default_raman() -> None:
+    """Verify parse technique uses PL token or default raman."""
     assert parse_technique(["PL"]) == "PL"
     assert parse_technique(["X", "Y"]) == "Raman"
 
@@ -120,20 +131,24 @@ def test_parse_date_and_cw_supports_every_configured_format(
     expected_date: str,
     expected_week: int,
 ) -> None:
+    """Verify parse date and cw supports every configured format."""
     assert set(DATE_FORMATS) == {"%d-%m-%Y", "%d-%m-%y", "%Y_%m_%d"}
     assert parse_date_and_cw(token) == (expected_date, expected_week)
 
 
 def test_parse_date_token_returns_first_matching_date_token() -> None:
+    """Verify parse date token returns first matching date token."""
     assert parse_date_token(["AAA", "01-06-24", "2024_06_01"]) == "01-06-24"
 
 
 def test_parse_date_and_cw_returns_none_tuple_for_missing_or_invalid_tokens() -> None:
+    """Verify parse date and cw returns none tuple for missing or invalid tokens."""
     assert parse_date_and_cw(None) == (None, None)
     assert parse_date_and_cw("not-a-date") == (None, None)
 
 
 def test_parse_nm_token_and_direct_nm_value() -> None:
+    """Verify parse nm token and direct nm value."""
     assert parse_nm_token(["AAA", "785nm", "BBB"]) == "785nm"
     assert parse_nm("785nm", path_rel="x/y/z") == 785.0
 
@@ -147,6 +162,7 @@ def test_parse_nm_token_and_direct_nm_value() -> None:
     ],
 )
 def test_parse_nm_uses_folder_fallback_then_default(path_rel: str, expected: float) -> None:
+    """Verify parse nm uses folder fallback then default."""
     assert parse_nm(None, path_rel=path_rel) == expected
 
 
@@ -164,11 +180,13 @@ def test_parse_position_returns_canonical_position_and_consumed_token(
     expected_position: str | None,
     expected_token: str | None,
 ) -> None:
+    """Verify parse position returns canonical position and consumed token."""
     assert parse_position(tokens) == expected_position
     assert parse_position_token(tokens) == expected_token
 
 
 def test_build_comments_excludes_used_tokens_and_configured_exclusions() -> None:
+    """Verify build comments excludes used tokens and configured exclusions."""
     exclusion = next(iter(COMMENT_EXCLUSION_TOKENS))
 
     assert build_comments(["A", "B", "C"], {"B"}) == "A_C"
@@ -177,6 +195,7 @@ def test_build_comments_excludes_used_tokens_and_configured_exclusions() -> None
 
 
 def test_parse_file_row_populates_registry_fields_for_representative_filename() -> None:
+    """Verify parse file row populates registry fields for representative filename."""
     row = parse_file_row(
         path_rel="folder/785nm/sub/FSU026_MKY_PL_01-06-2024_Pellet1S2_extra.spc",
         current_filename="FSU026_MKY_PL_01-06-2024_Pellet1S2_extra",
@@ -220,6 +239,7 @@ def test_parse_file_row_populates_registry_fields_for_representative_filename() 
 
 
 def test_parse_file_row_handles_compound_operator_liquid_and_defaults() -> None:
+    """Verify parse file row handles compound operator liquid and defaults."""
     row = parse_file_row(
         path_rel="folder/532nm/FSU026_MKY-LF_PL_liquid.spc",
         current_filename="FSU026_MKY-LF_PL_liquid_01-06-2024",

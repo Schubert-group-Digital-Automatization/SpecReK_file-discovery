@@ -26,13 +26,13 @@ from .detection_utils import (
 from .io_utils import ensure_columns, is_blank_series, load_curated, load_inbox, write_csv
 from .purging_utils import prune_inbox_by_path, prune_inbox_with_conflicts
 from .restructure import restructure as _restructure
-from .verify_paths import verify as _verify
 from .validate import (
     validate_csv_file,
     validate_csv_has_required_columns,
     validate_dir_exists,
     validate_output_parent_exists,
 )
+from .verify_paths import verify as _verify
 
 __all__ = (
     "discover",

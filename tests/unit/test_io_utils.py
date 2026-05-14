@@ -1,9 +1,12 @@
+"""Unit tests for IO utils behavior."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from tests.helpers import assert_columns, read_semicolon_csv
 
 from file_discovery.config import REGISTRY_COLS
 from file_discovery.io_utils import (
@@ -17,10 +20,10 @@ from file_discovery.io_utils import (
     normalize_strings,
     write_csv,
 )
-from tests.helpers import assert_columns, read_semicolon_csv, registry_frame
 
 
 def test_ensure_columns_returns_copy_without_mutating_input() -> None:
+    """Verify ensure columns returns copy without mutating input."""
     original = pd.DataFrame({"A": ["x"]})
 
     result = ensure_columns(original, ("A", "B"))
@@ -31,6 +34,7 @@ def test_ensure_columns_returns_copy_without_mutating_input() -> None:
 
 
 def test_normalize_strings_strips_existing_columns_in_place_only() -> None:
+    """Verify normalize strings strips existing columns in place only."""
     frame = pd.DataFrame({"A": ["  x  ", pd.NA], "B": [" untouched ", " untouched "]})
 
     normalize_strings(frame, ("A", "missing"))
@@ -50,12 +54,14 @@ def test_is_blank_series_treats_na_and_whitespace_as_blank(
     values: list[object],
     expected: list[bool],
 ) -> None:
+    """Verify is blank series treats NA and whitespace as blank."""
     result = is_blank_series(pd.Series(values))
 
     assert result.tolist() == expected
 
 
 def test_apply_query_returns_filtered_view_for_valid_query() -> None:
+    """Verify apply query returns filtered view for valid query."""
     frame = pd.DataFrame({"Technique": ["Raman", "PL"], "ID": ["one", "two"]})
 
     result = apply_query(frame, 'Technique == "Raman"')
@@ -64,6 +70,7 @@ def test_apply_query_returns_filtered_view_for_valid_query() -> None:
 
 
 def test_apply_query_wraps_invalid_query() -> None:
+    """Verify apply query wraps invalid query."""
     frame = pd.DataFrame({"Technique": ["Raman"]})
 
     with pytest.raises(ValueError, match="Invalid query"):
@@ -78,6 +85,7 @@ def test_apply_query_wraps_invalid_query() -> None:
     ],
 )
 def test_normalize_date_column_formats_supported_dates(raw: str, expected: str) -> None:
+    """Verify normalize date column formats supported dates."""
     frame = pd.DataFrame({"Date": [raw]})
 
     normalize_date_column(frame)
@@ -86,6 +94,7 @@ def test_normalize_date_column_formats_supported_dates(raw: str, expected: str) 
 
 
 def test_normalize_date_column_keeps_blank_values_missing() -> None:
+    """Verify normalize date column keeps blank values missing."""
     frame = pd.DataFrame({"Date": [pd.NA, ""]})
 
     normalize_date_column(frame)
@@ -95,6 +104,7 @@ def test_normalize_date_column_keeps_blank_values_missing() -> None:
 
 
 def test_normalize_date_column_rejects_invalid_nonempty_values() -> None:
+    """Verify normalize date column rejects invalid nonempty values."""
     frame = pd.DataFrame({"Date": ["not-a-date"]})
 
     with pytest.raises(ValueError, match="Could not parse"):
@@ -102,6 +112,7 @@ def test_normalize_date_column_rejects_invalid_nonempty_values() -> None:
 
 
 def test_load_csv_or_empty_returns_schema_for_missing_file(tmp_path: Path) -> None:
+    """Verify load CSV or empty returns schema for missing file."""
     missing = tmp_path / "missing.csv"
 
     frame, added = load_csv_or_empty(missing, REGISTRY_COLS)
@@ -113,6 +124,7 @@ def test_load_csv_or_empty_returns_schema_for_missing_file(tmp_path: Path) -> No
 def test_load_csv_or_empty_strips_headers_adds_missing_columns_and_drops_empty_rows(
     tmp_path: Path,
 ) -> None:
+    """Verify load CSV or empty strips headers adds missing columns and drops empty rows."""
     path = tmp_path / "registry.csv"
     path.write_text(" ID ; Path ; Extra \nSPR_AP1_00001;a/b/file.spc;x\n;;\n", encoding="utf-8")
 
@@ -126,6 +138,7 @@ def test_load_csv_or_empty_strips_headers_adds_missing_columns_and_drops_empty_r
 
 
 def test_load_csv_or_empty_rejects_null_bytes(tmp_path: Path) -> None:
+    """Verify load CSV or empty rejects null bytes."""
     path = tmp_path / "registry.csv"
     path.write_bytes(b"ID;Pa\x00th\n")
 
@@ -134,6 +147,7 @@ def test_load_csv_or_empty_rejects_null_bytes(tmp_path: Path) -> None:
 
 
 def test_normalize_curated_columns_strips_names_without_legacy_mapping() -> None:
+    """Verify normalize curated columns strips names without legacy mapping."""
     frame = pd.DataFrame({" Projekt ": ["Legacy"], " Project ": ["Canonical"]})
 
     result = normalize_curated_columns(frame)
@@ -143,6 +157,7 @@ def test_normalize_curated_columns_strips_names_without_legacy_mapping() -> None
 
 
 def test_load_curated_keeps_legacy_projekt_as_extra_column(tmp_path: Path) -> None:
+    """Verify load curated keeps legacy projekt as extra column."""
     path = tmp_path / "legacy.csv"
     write_csv(
         pd.DataFrame(
@@ -167,6 +182,7 @@ def test_load_curated_keeps_legacy_projekt_as_extra_column(tmp_path: Path) -> No
 
 
 def test_write_csv_uses_semicolon_utf8_sig_and_stripped_headers(tmp_path: Path) -> None:
+    """Verify write CSV uses semicolon utf8 sig and stripped headers."""
     path = tmp_path / "registry.csv"
 
     write_csv(pd.DataFrame({" ID ": ["SPR_AP1_00001"], "Path": ["a/b/file.spc"]}), path)
@@ -177,6 +193,7 @@ def test_write_csv_uses_semicolon_utf8_sig_and_stripped_headers(tmp_path: Path) 
 
 
 def test_py_typed_marker_exists() -> None:
+    """Verify py typed marker exists."""
     marker = Path(__file__).parents[2] / "src" / "file_discovery" / "py.typed"
 
     assert marker.exists()

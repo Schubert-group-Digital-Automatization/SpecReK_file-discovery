@@ -1,18 +1,21 @@
+"""Unit tests for project metadata behavior."""
+
 from __future__ import annotations
 
-from pathlib import Path
 import tomllib
-
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_project_metadata() -> dict[str, object]:
+    """Load project metadata."""
     with (PROJECT_ROOT / "pyproject.toml").open("rb") as handle:
         return tomllib.load(handle)["project"]
 
 
 def test_project_metadata_declares_apache_alpha_release() -> None:
+    """Verify project metadata declares apache alpha release."""
     project = load_project_metadata()
 
     assert project["license"] == "Apache-2.0"
@@ -21,6 +24,7 @@ def test_project_metadata_declares_apache_alpha_release() -> None:
 
 
 def test_project_classifiers_match_supported_metadata() -> None:
+    """Verify project classifiers match supported metadata."""
     classifiers = set(load_project_metadata()["classifiers"])
 
     assert not any(classifier.startswith("License ::") for classifier in classifiers)

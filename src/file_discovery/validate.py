@@ -24,9 +24,9 @@ CSV contract
 
 from __future__ import annotations
 
+import csv
 from collections.abc import Collection
 from pathlib import Path
-import csv
 
 from .config import CSV_SEP
 
@@ -179,9 +179,7 @@ def validate_output_parent_exists(path: Path, *, name: str) -> None:
     if not parent.exists():
         raise FileNotFoundError(f"{name} parent directory does not exist: {parent}")
     if not parent.is_dir():
-        raise NotADirectoryError(
-            f"{name} parent must be a directory, got: {parent}"
-        )
+        raise NotADirectoryError(f"{name} parent must be a directory, got: {parent}")
 
 
 def _read_csv_header(path: Path, *, sep: str, name: str) -> list[str]:
@@ -224,16 +222,10 @@ def _read_csv_header(path: Path, *, sep: str, name: str) -> list[str]:
 
     null_cols = [col for col in cols if "\x00" in col]
     if null_cols:
-        raise ValueError(
-            f"{name}: CSV header contains null byte(s) in column name(s): "
-            f"{null_cols}"
-        )
+        raise ValueError(f"{name}: CSV header contains null byte(s) in column name(s): {null_cols}")
 
     if not cols:
-        raise ValueError(
-            f"{name}: CSV header is empty or not parseable with sep='{sep}': "
-            f"{path}"
-        )
+        raise ValueError(f"{name}: CSV header is empty or not parseable with sep='{sep}': {path}")
 
     empty_positions = [idx + 1 for idx, col in enumerate(cols) if not col]
 
@@ -253,8 +245,7 @@ def _read_csv_header(path: Path, *, sep: str, name: str) -> list[str]:
 
     if duplicates:
         raise ValueError(
-            f"{name}: CSV header contains duplicate column name(s): "
-            f"{sorted(duplicates)}"
+            f"{name}: CSV header contains duplicate column name(s): {sorted(duplicates)}"
         )
 
     return cols
