@@ -1,33 +1,41 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "file_discovery"
-version = "1.9.5"
+version = "1.9.7-alpha"
 description = "Discovery and inbox workflow for SpecReK measurement files."
 readme = "readme.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
   { name = "Moritz Kleybolte" }
 ]
 dependencies = [
   "pandas>=2.1"
 ]
+keywords = ["files", "discovery", "registry", "pandas"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: OS Independent",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/Schubert-group-Digital-Automatization/SpecReK_file-discovery"
+Repository = "https://github.com/Schubert-group-Digital-Automatization/SpecReK_file-discovery"
+Issues = "https://github.com/Schubert-group-Digital-Automatization/SpecReK_file-discovery/issues"
 
 [project.optional-dependencies]
 test = [
   "pytest>=8",
-]
-
-# Optional but nice: keywords + classifiers
-keywords = ["files", "discovery", "registry", "pandas"]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
 ]
 
 [tool.setuptools]
